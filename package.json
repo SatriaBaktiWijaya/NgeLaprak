@@ -1,0 +1,30 @@
+{
+  "name": "ngelaprak",
+  "version": "1.0.0",
+  "description": "Universal AI Agent Skill & Tool for Generating Lab Reports (.docx & .pdf)",
+  "main": "ngelaprak/cli.py",
+  "bin": {
+    "ngelaprak": "./bin/ngelaprak.js"
+  },
+  "scripts": {
+    "install-skill": "powershell -ExecutionPolicy Bypass -File ./install.ps1",
+    "test": "python -m unittest discover -s tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SatriaBaktiWijaya/NgeLaprak.git"
+  },
+  "keywords": [
+    "antigravity",
+    "agent-skill",
+    "laprak",
+    "laporan-praktikum",
+    "docx",
+    "pdf",
+    "netbeans",
+    "codeblocks",
+    "vscode"
+  ],
+  "author": "Satria Bakti Wijaya",
+  "license": "MIT"
+}
