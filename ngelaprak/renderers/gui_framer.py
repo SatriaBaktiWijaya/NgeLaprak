@@ -44,10 +44,11 @@ def frame_windows_gui(content_img_path, title_text="Application", out_path="fram
         
     draw.text((34, 7), title_text, fill=(30, 30, 30, 255), font=font_title)
     
-    # Window controls
-    draw.text((total_w - 90, 7), "—", fill=(60, 60, 60, 255), font=font_btn)
-    draw.rectangle([total_w - 60, 11, total_w - 50, 21], outline=(60, 60, 60, 255), width=1)
-    draw.text((total_w - 28, 7), "✕", fill=(60, 60, 60, 255), font=font_btn)
+    # Window controls (crisp vector shapes: Minimize, Maximize, and Close X)
+    draw.line([(total_w - 97, 16), (total_w - 87, 16)], fill=(70, 70, 70, 255), width=1)
+    draw.rectangle([(total_w - 63, 11), (total_w - 53, 21)], outline=(70, 70, 70, 255), width=1)
+    draw.line([(total_w - 29, 11), (total_w - 19, 21)], fill=(70, 70, 70, 255), width=1)
+    draw.line([(total_w - 19, 11), (total_w - 29, 21)], fill=(70, 70, 70, 255), width=1)
     
     # Paste GUI body
     frame.paste(content, (border, title_h), content)
