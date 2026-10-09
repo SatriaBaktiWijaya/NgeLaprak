@@ -49,6 +49,23 @@ Dapat digunakan untuk berbagai mata kuliah pemrograman dan informatika:
 
 ---
 
+## 📂 Contoh Hasil Laporan Praktikum (Sample Outputs)
+
+Repositori ini menyertakan contoh lengkap laporan praktikum yang dihasilkan oleh **NgeLaprak**:
+
+| Mata Kuliah | Target IDE | Dokumen Word & PDF |
+| :--- | :--- | :--- |
+| **ADPL / PBO (Java)** | Apache NetBeans & Java Swing GUI | [`examples/adpl_modul4_sample/`](examples/adpl_modul4_sample/) <br> • [Download DOCX](examples/adpl_modul4_sample/LAPRAK_SAMPLE_ADPL_MODUL4.docx) <br> • [Download PDF](examples/adpl_modul4_sample/LAPRAK_SAMPLE_ADPL_MODUL4.pdf) |
+| **Struktur Data (C++)** | Code::Blocks & Windows Console | [`examples/strukdat_modul3_sample/`](examples/strukdat_modul3_sample/) <br> • [Download DOCX](examples/strukdat_modul3_sample/LAPRAK_SAMPLE_STRUKDAT_MODUL3.docx) <br> • [Download PDF](examples/strukdat_modul3_sample/LAPRAK_SAMPLE_STRUKDAT_MODUL3.pdf) |
+
+### 🖼️ Cuplikan Halaman Laporan
+
+| ADPL / PBO (Java NetBeans & GUI) | Struktur Data (C++ Code::Blocks) |
+| :---: | :---: |
+| <img src="examples/adpl_modul4_sample/preview_sample.png" width="370" /> | <img src="examples/strukdat_modul3_sample/preview_sample.png" width="370" /> |
+
+---
+
 ## 📥 Cara Instalasi (Sangat Mudah)
 
 ### ⭐ Opsi 1: Lewat `npx skills` (Paling Praktis untuk AI Coding Agent)

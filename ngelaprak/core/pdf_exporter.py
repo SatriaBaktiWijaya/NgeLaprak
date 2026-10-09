@@ -15,7 +15,16 @@ def export_docx_to_pdf(docx_path, pdf_path=None):
 
     os.makedirs(os.path.dirname(pdf_path), exist_ok=True)
 
-    # 1. Try Windows Word COM via PowerShell
+    # 1. Try docx2pdf if installed (uses native COM directly in python)
+    try:
+        from docx2pdf import convert
+        convert(docx_path, pdf_path)
+        if os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            return pdf_path
+    except Exception as e:
+        pass
+
+    # 2. Try Windows Word COM via PowerShell
     if sys.platform == "win32":
         ps_cmd = f"""
 $word = New-Object -ComObject Word.Application
@@ -35,15 +44,6 @@ try {{
                 return pdf_path
         except Exception as e:
             print(f"[Warning] PowerShell Word COM failed: {e}")
-
-    # 2. Try docx2pdf if installed
-    try:
-        from docx2pdf import convert
-        convert(docx_path, pdf_path)
-        if os.path.exists(pdf_path):
-            return pdf_path
-    except Exception:
-        pass
 
     # 3. Try LibreOffice headless
     try:

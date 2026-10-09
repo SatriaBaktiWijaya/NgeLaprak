@@ -61,12 +61,13 @@ class LaprakDocxBuilder:
         self.add_section_heading(item_title)
         self.add_paragraph_text("Kode")
 
+        w = img_width if img_width is not None else Inches(5.2)
         for img_path in image_paths:
             if os.path.exists(img_path):
                 p_img = self.doc.add_paragraph()
                 p_img.style = 'Heading 1'
                 p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p_img.add_run().add_picture(img_path, width=img_width)
+                p_img.add_run().add_picture(img_path, width=w)
 
         self.add_paragraph_text("Penjelasan")
         self.add_paragraph_text(explanation_text)
