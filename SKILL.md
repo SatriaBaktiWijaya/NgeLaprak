@@ -82,6 +82,10 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
 
 Tuliskan penjelasan kode dan dasar teori dengan aturan berikut:
 - **Gaya Bahasa Mahasiswa Santai & Pragmatis**: Singkat, jelas, langsung ke fungsi kode (*to the point*).
+- **Format Paragraf & Tipografi Penjelasan**:
+  - Teks penjelasan **JANGAN di-bold** (`bold = False`).
+  - Kalimat pertama **wajib menjorok ke dalam** (*first-line indent* ~1 cm / 0.4 inci).
+  - Teks rata kanan-kiri (*Justified*) dengan spasi baris 1.15 dan font Times New Roman 11pt.
 - **Hindari Ciri Bahasa AI**:
   - JANGAN gunakan kata-kata klise robotik seperti: *"Kode ini mendemonstrasikan implementasi komprehensif...", "Melalui arsitektur ini, integritas data terjamin...", "Secara elegan menangani..."*.
   - GUNAKAN gaya natural mahasiswa: *"Fungsi ini dipake buat...", "Di kelas ini kita inisialisasi tabel sama textfield...", "Bagian ini buat nangkep klik tombol simpan biar langsung masuk ke database..."*.
@@ -90,6 +94,9 @@ Tuliskan penjelasan kode dan dasar teori dengan aturan berikut:
 ---
 
 ### Langkah 5: Perakitan Dokumen Word (`.docx`) & PDF (`.pdf`)
+
+> **Catatan Lokasi Toolkit & Resource:**  
+> Seluruh modul renderer dan builder telah dibundel langsung di dalam direktori skill ini (`ngelaprak/`). Anda dapat langsung mengimpornya dengan menambahkan direktori skill ke `sys.path` atau menjalankan generator python langsung.
 
 1. **Tata Letak & Spasi Halaman**:
    - Potong kode panjang menjadi irisan ~20–25 baris per gambar agar tidak memicu *page break* yang meninggalkan ruang kosong janggal.
