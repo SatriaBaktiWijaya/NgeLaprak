@@ -46,10 +46,14 @@ def highlight_codeblocks_cpp(line_text):
             
     return "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
 
-def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="codeblocks_shot.png"):
+def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="codeblocks_shot.png", with_cursor=True, author_tag=None):
     """
     Renders an authentic Code::Blocks editor snippet (C/C++).
+    Includes optional blinking cursor, author header, and anti-plagiarism dimension jitter.
     """
+    if author_tag and start_line == 1 and not code_text.strip().startswith("//"):
+        code_text = f"// @author {author_tag}\n" + code_text
+
     all_lines = code_text.splitlines()
     if end_line is None or end_line > len(all_lines):
         end_line = len(all_lines)
@@ -58,7 +62,12 @@ def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="cod
     num_lines = len(slice_lines)
     
     gutter_html = "".join(f'<div class="cb-gutter-row">{start_line + i}</div>' for i in range(num_lines))
-    code_html = "".join(f'<div class="cb-code-row">{highlight_codeblocks_cpp(l)}</div>' for l in slice_lines)
+    code_rows = []
+    for i, line in enumerate(slice_lines):
+        highlighted = highlight_codeblocks_cpp(line)
+        cursor_elem = '<span class="cb-cursor"></span>' if (i == num_lines - 1 and with_cursor) else ''
+        code_rows.append(f'<div class="cb-code-row">{highlighted}{cursor_elem}</div>')
+    code_html = "".join(code_rows)
 
     temp_html = os.path.abspath(out_path + ".temp.html")
     
@@ -108,6 +117,14 @@ body {{
 .cb-prep {{ color: #008000; font-weight: normal; }}
 .cb-string {{ color: #a00000; }}
 .cb-comment {{ color: #008000; font-style: italic; }}
+.cb-cursor {{
+    display: inline-block;
+    width: 1.5px;
+    height: 15px;
+    background: #000000;
+    margin-left: 2px;
+    vertical-align: middle;
+}}
 </style>
 </head>
 <body>
@@ -137,17 +154,21 @@ body {{
         try: os.remove(temp_html)
         except: pass
         
+    # Auto crop white margin with anti-plagiarism dimension jitter
     if os.path.exists(out_path):
+        import random
         im = Image.open(out_path)
         bg = Image.new(im.mode, im.size, (255, 255, 255))
         diff = ImageChops.difference(im, bg)
         bbox = diff.getbbox()
         if bbox:
+            jitter_w = random.randint(18, 55)
+            jitter_h = random.randint(4, 18)
             crop_box = (
                 max(0, bbox[0] - 2),
                 max(0, bbox[1] - 2),
-                min(im.width, bbox[2] + 4),
-                min(im.height, bbox[3] + 4)
+                min(im.width, bbox[2] + jitter_w),
+                min(im.height, bbox[3] + jitter_h)
             )
             im = im.crop(crop_box)
             im.save(out_path)

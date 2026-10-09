@@ -23,7 +23,21 @@ graph TD
     F --> G[Ekspor Otomatis ke .pdf]
 ```
 
-### Langkah 1: Deteksi & Ekstraksi Masukan
+### Langkah 0: Klarifikasi Interaktif dengan Mahasiswa
+Ketika pengguna memanggil skill ini (misal: *"Tolong buatin laprak modul 4"*), AI Agent **TIDAK BOLEH** langsung mengasumsikan data penting tanpa konfirmasi. Lakukan pemindaian folder kerja lalu ajukan pertanyaan klarifikasi singkat:
+
+1. **Konfirmasi Identitas:**  
+   - Tanyakan Nama & NIM jika belum ditemukan di template: *"Boleh sebutkan Nama & NIM kamu agar langsung dipasang di cover dan author watermark kode?"*
+2. **Konfirmasi Modul & Matkul:**  
+   - Jika ada beberapa modul di folder, tanyakan modul mana yang dikerjakan: *"Aku melihat ada Modul 3 dan Modul 4, mau yang pertemuan 4 kan?"*
+3. **Preferensi Tangkapan Layar (IDE):**  
+   - Tanyakan tampilan IDE yang diinginkan: *"Untuk kodingan, mau pakai tampilan NetBeans, Code::Blocks, VS Code, DBeaver (SQL), atau kamu sudah punya screenshot sendiri dari Snipping Tool?"*
+4. **Ringkasan Temuan Cepat:**  
+   - Jika file sudah lengkap, konfirmasi dalam 1 kalimat: *"Aku sudah menemukan Modul 4 ADPL dan kodingan di folder Code. Mau langsung aku proses dengan identitas [Nama - NIM]?"*
+
+---
+
+### Langkah 1: Deteksi & Ekstraksi Masukan (Anti-Plagiarisme & Personalisasi)
 Secara cerdas periksa folder atau referensi yang diberikan pengguna:
 1. **Modul Praktikum (`Modul*.pdf` / `*.docx`)**:
    - Ekstrak: Judul Pertemuan/Modul, Tujuan Praktikum, Tool yang digunakan, Dasar Teori, dan daftar tugas (Guided, Unguided, Latihan, Tugas Praktikum).
@@ -35,8 +49,9 @@ Secara cerdas periksa folder atau referensi yang diberikan pengguna:
      - **Sistem Penomoran**: Romawi (I. TUJUAN, II. TOOL, III. DASAR TEORI, IV. GUIDED) atau huruf/angka.
 3. **Kode Program / Projek Praktikum**:
    - Periksa file kode yang dikerjakan mahasiswa (misal Java Maven/Ant, C++, Python, PHP, dll.).
+   - Sisipkan identitas mahasiswa (Nama/NIM) di komentar `@author` kodingan atau title bar window untuk mencegah plagiarisme.
 4. **Tugas Pendahuluan (TP) / Tugas Akhir (Jika Ada)**:
-   - Jawab pertanyaan secara singkat, padat, dan akurat.
+   - Jawab pertanyaan secara singkat, padat, dan akurat dengan variasi kalimat natural.
 
 ---
 
@@ -69,12 +84,16 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
        - Font Consolas/Courier monospace khas Code::Blocks.
        - Nomor baris berjarak rapat di gutter abu-abu.
        - Syntax warna: Keywords biru tua, include/preprocessor hijau, strings merah.
-     - **Python / Web / VS Code (`vscode_renderer.py`)**:
+     - **Python / Web / VS Code (scode_renderer.py)**:
        - Tema clean VS Code Dark+ atau Light+.
-     - **Output Terminal / Console (`terminal_renderer.py`)**:
-       - Tampilan console command prompt / PowerShell / MySQL client asli.
-     - **Jendela Java Swing Native (`gui_framer.py`)**:
-       - Frame jendela Windows 11 dengan ikon cangkir kopi Java 3D asli dan tombol DWM native.
+     - **Basis Data / SQL (database_renderer.py)**:
+       - Tampilan konsol DBeaver / Navicat / pgAdmin dengan query SQL ter-highlight dan data grid tabel hasil eksekusi lengkap dengan nomor baris dan status bar.
+     - **Output Terminal / Console (	erminal_renderer.py)**:
+       - Tampilan console command prompt / PowerShell / MySQL client / Bash terminal asli.
+     - **Jendela Java Swing Native (gui_framer.py)**:
+       - Frame jendela Windows 11 dengan ikon cangkir kopi Java 3D asli dan tombol vector native (Minimize, Maximize, Close X).
+     - **Anti-Plagiarisme Dimensi Gambar**:
+       - Seluruh renderer otomatis menambahkan dimensional jitter acak (variasi lebar/tinggi ~15-45 px) sehingga resolusi gambar screenshot tiap mahasiswa tidak identik satu sama lain saat diperiksa sistem plagiarism checker kampus.
 
 ---
 

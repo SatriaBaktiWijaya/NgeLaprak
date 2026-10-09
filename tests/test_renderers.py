@@ -5,7 +5,8 @@ from ngelaprak.renderers import (
     render_codeblocks_code,
     render_vscode_code,
     render_terminal_output,
-    frame_windows_gui
+    frame_windows_gui,
+    render_database_query
 )
 
 TEST_OUT_DIR = os.path.join(os.path.dirname(__file__), "test_outputs")
@@ -54,6 +55,17 @@ int main() {
         sample_lines = ["mysql> SELECT * FROM users;", "1 row in set (0.01 sec)"]
         out_png = os.path.join(TEST_OUT_DIR, "test_term.png")
         res = render_terminal_output("MySQL 8.0 Client", sample_lines, out_path=out_png)
+        self.assertTrue(os.path.exists(res))
+        self.assertGreater(os.path.getsize(res), 1000)
+
+    def test_database_renderer(self):
+        out_png = os.path.join(TEST_OUT_DIR, "test_db.png")
+        res = render_database_query(
+            "SELECT * FROM test;",
+            ["id", "name"],
+            [(1, "Alice"), (2, "Bob")],
+            out_path=out_png
+        )
         self.assertTrue(os.path.exists(res))
         self.assertGreater(os.path.getsize(res), 1000)
 

@@ -49,7 +49,7 @@ def highlight_netbeans_java(line_text, is_active=False):
     res = "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
     return res
 
-def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_path="netbeans_shot.png", active_line_offset=None, with_margin_guide=True):
+def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_path="netbeans_shot.png", active_line_offset=None, with_margin_guide=True, with_cursor=True, author_tag=None):
     """
     Renders an authentic Apache NetBeans editor screenshot snippet.
     Matches NetBeans default Java editor:
@@ -58,8 +58,13 @@ def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_p
     - Pastel light yellow active line highlight (#fff9e6)
     - Faint pink vertical column guide line
     - Gutter fold icons and warning lightbulb hints
+    - Blinking editor cursor on active line
+    - Anti-plagiarism dimension jittering
     - Clean editor viewport cropping without faux web tabs
     """
+    if author_tag and start_line == 1 and not code_text.strip().startswith("//"):
+        code_text = f"// @author {author_tag}\n" + code_text
+
     all_lines = code_text.splitlines()
     if end_line is None or end_line > len(all_lines):
         end_line = len(all_lines)
@@ -88,7 +93,8 @@ def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_p
         # Code element
         highlighted = highlight_netbeans_java(raw_line, is_active)
         active_class = " active-line" if is_active else ""
-        code_html += f'<div class="code-row{active_class}">{highlighted}</div>'
+        cursor_elem = '<span class="nb-cursor"></span>' if (is_active and with_cursor) else ''
+        code_html += f'<div class="code-row{active_class}">{highlighted}{cursor_elem}</div>'
 
     temp_html = os.path.abspath(out_path + ".temp.html")
     
@@ -191,6 +197,14 @@ body {{
     background: #f3c2c2;
     z-index: 10;
 }}
+.nb-cursor {{
+    display: inline-block;
+    width: 1.5px;
+    height: 15px;
+    background: #000000;
+    margin-left: 2px;
+    vertical-align: middle;
+}}
 /* Syntax Highlighting */
 .nb-kw {{ color: #0000e6; font-weight: normal; }}
 .nb-string {{ color: #008000; }}
@@ -229,18 +243,21 @@ body {{
         try: os.remove(temp_html)
         except: pass
         
-    # Auto crop white margin
+    # Auto crop white margin with anti-plagiarism dimension jitter
     if os.path.exists(out_path):
+        import random
         im = Image.open(out_path)
         bg = Image.new(im.mode, im.size, (255, 255, 255))
         diff = ImageChops.difference(im, bg)
         bbox = diff.getbbox()
         if bbox:
+            jitter_w = random.randint(18, 55)
+            jitter_h = random.randint(4, 18)
             crop_box = (
                 max(0, bbox[0] - 2),
                 max(0, bbox[1] - 2),
-                min(im.width, bbox[2] + 4),
-                min(im.height, bbox[3] + 4)
+                min(im.width, bbox[2] + jitter_w),
+                min(im.height, bbox[3] + jitter_h)
             )
             im = im.crop(crop_box)
             im.save(out_path)
