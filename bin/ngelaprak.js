@@ -107,7 +107,9 @@ CARA INSTALL KE AI AGENT:
 
 PERINTAH CLI:
   npx ngelaprak install          Pasang skill & dependensi Python ke sistem
-  npx ngelaprak init             Buat struktur folder laprak (Modul/, Laprak/, Code/)
+  npx ngelaprak organize         Auto-scaffold & rapikan file root ke Modul/, Laprak/, Code/
+  npx ngelaprak analyze          Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE
+  npx ngelaprak init             Buat struktur folder laprak kosong
   npx ngelaprak render           Render screenshot IDE otentik
   npx ngelaprak export-pdf       Konversi Word (.docx) ke PDF (.pdf)
 
@@ -119,8 +121,10 @@ CONTOH PENGGUNAAN CHAT AI AGENT:
 } else {
   // Delegate to Python CLI
   const pyCmd = findPython();
-  const pyScript = path.join(__dirname, '..', 'ngelaprak', 'cli.py');
-  const py = spawn(pyCmd, [pyScript, ...args], { stdio: 'inherit' });
+  const rootDir = path.join(__dirname, '..');
+  const pyScript = path.join(rootDir, 'ngelaprak', 'cli.py');
+  const env = { ...process.env, PYTHONPATH: rootDir + (process.env.PYTHONPATH ? path.delimiter + process.env.PYTHONPATH : '') };
+  const py = spawn(pyCmd, [pyScript, ...args], { stdio: 'inherit', env });
   py.on('close', (code) => {
     process.exit(code || 0);
   });

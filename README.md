@@ -47,6 +47,10 @@ Dapat digunakan untuk berbagai mata kuliah pemrograman dan informatika:
 * Menghasilkan dokumen Word (`.docx`) dengan margin, font, dan cover yang identik dengan template kampus.
 * Ekspor otomatis ke `.pdf` siap cetak/kumpul.
 
+### 5. 🧠 Smart Context & Auto-Scaffold (Zero-Setup Workspace)
+* **File Tercecer? Nggak Masalah!**: Cukup taruh berkas materi, TP, atau laprak lama di satu folder tanpa subfolder. `NgeLaprak` otomatis membuat struktur direktori (`Modul/`, `Laprak/`, `Code/`) dan memindahkan setiap berkas ke folder yang sesuai.
+* **Deteksi Mandiri Tanpa Repot**: AI secara otomatis mengenali mata kuliah, modul target, identitas mahasiswa (Nama & NIM) dari riwayat laprak lama, bahasa kodingan, hingga IDE yang cocok.
+
 ---
 
 ## 📂 Contoh Hasil Laporan Praktikum (Sample Outputs)
@@ -135,6 +139,12 @@ AI Agent akan otomatis:
 
 Jika ingin menggunakan tool mandiri lewat terminal:
 ```bash
+# Auto-scaffold dan rapikan file tercecer ke Modul/, Laprak/, dan Code/
+python -m ngelaprak organize
+
+# Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE
+python -m ngelaprak analyze
+
 # Inisialisasi struktur folder laporan di direktori kerja
 python -m ngelaprak init
 
