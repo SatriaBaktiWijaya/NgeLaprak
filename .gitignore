@@ -46,3 +46,5 @@ Thumbs.db
 .temp_trash/
 temp/
 scratch/
+.agents/
+skills-lock.json

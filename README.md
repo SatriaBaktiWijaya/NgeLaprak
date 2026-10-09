@@ -49,27 +49,47 @@ Dapat digunakan untuk berbagai mata kuliah pemrograman dan informatika:
 
 ---
 
-## 📥 Cara Instalasi
+## 📥 Cara Instalasi (Sangat Mudah)
 
-### Opsi 1: Windows (PowerShell) - 1 Klik
-Cukup buka terminal PowerShell di folder ini dan jalankan:
+### ⭐ Opsi 1: Lewat `npx skills` (Paling Praktis untuk AI Coding Agent)
+Bagi pengguna **Antigravity, Cursor, Claude Code, Cline, Codex, Amp**, cukup jalankan satu perintah:
+
+```bash
+# Pasang ke proyek saat ini
+npx skills add SatriaBaktiWijaya/NgeLaprak
+
+# ATAU pasang secara global ke semua proyek
+npx skills add SatriaBaktiWijaya/NgeLaprak -g
+```
+*Skills CLI akan otomatis mendeteksi AI Agent yang terpasang dan mengkonfigurasi skill tanpa perlu copy manual.*
+
+---
+
+### 📦 Opsi 2: Lewat `npx ngelaprak`
+Bisa langsung dijalankan dari terminal:
+```bash
+npx ngelaprak install
+```
+
+---
+
+### 🖥️ Opsi 3: Windows (PowerShell) - 1 Klik
+Cukup clone dan jalankan skrip installer:
 ```powershell
+git clone https://github.com/SatriaBaktiWijaya/NgeLaprak.git
+cd NgeLaprak
 .\install.ps1
 ```
-Skrip ini akan otomatis memasang dependensi Python dan mendaftarkan skill ke direktori agen global (`~/.gemini/config/skills/ngelaprak`).
+Skrip ini akan otomatis memasang dependensi Python (`python-docx`, `pillow`) dan mendaftarkan skill ke direktori agen global (`~/.gemini/config/skills/ngelaprak`).
 
-### Opsi 2: Linux / macOS
-```bash
-chmod +x install.sh
-./install.sh
-```
+---
 
-### Opsi 3: Menggunakan Git Clone (Untuk Teman-teman)
-Bagikan repositori ini ke teman-temanmu:
+### 🐧 Opsi 4: Linux / macOS
 ```bash
 git clone https://github.com/SatriaBaktiWijaya/NgeLaprak.git
 cd NgeLaprak
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+chmod +x install.sh
+./install.sh
 ```
 
 ---

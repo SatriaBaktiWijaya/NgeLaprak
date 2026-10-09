@@ -2,12 +2,21 @@
   "name": "ngelaprak",
   "version": "1.0.0",
   "description": "Universal AI Agent Skill & Tool for Generating Lab Reports (.docx & .pdf)",
-  "main": "ngelaprak/cli.py",
+  "main": "bin/ngelaprak.js",
   "bin": {
     "ngelaprak": "./bin/ngelaprak.js"
   },
+  "files": [
+    "bin",
+    "ngelaprak",
+    "skills",
+    "SKILL.md",
+    "README.md",
+    "install.ps1",
+    "install.sh"
+  ],
   "scripts": {
-    "install-skill": "powershell -ExecutionPolicy Bypass -File ./install.ps1",
+    "install-skill": "node ./bin/ngelaprak.js install",
     "test": "python -m unittest discover -s tests"
   },
   "repository": {
@@ -15,8 +24,11 @@
     "url": "git+https://github.com/SatriaBaktiWijaya/NgeLaprak.git"
   },
   "keywords": [
+    "agent-skills",
+    "skills",
     "antigravity",
-    "agent-skill",
+    "claude-code",
+    "cursor",
     "laprak",
     "laporan-praktikum",
     "docx",
