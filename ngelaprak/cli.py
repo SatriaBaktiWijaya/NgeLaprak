@@ -35,6 +35,7 @@ def main():
     parser_init = subparsers.add_parser("init", help="Inisialisasi struktur folder laporan praktikum")
     parser_init.add_argument("--path", default=".", help="Direktori target")
     parser_init.add_argument("--organize", action="store_true", help="Otomatis rapikan file yang tercecer di root")
+    parser_init.add_argument("--lang", choices=["java", "cpp", "python", "sql"], default=None, help="Inisialisasi struktur proyek IDE resmi (NetBeans/CodeBlocks)")
 
     # Command: organize
     parser_organize = subparsers.add_parser("organize", help="Auto-scaffold dan rapikan file ke Modul/, Laprak/, dan Code/")
@@ -61,7 +62,7 @@ def main():
     args = parser.parse_args()
 
     if args.command in ["init", "organize"]:
-        from ngelaprak.core import organize_workspace
+        from ngelaprak.core import organize_workspace, auto_scaffold_code_directory
         target = os.path.abspath(args.path)
 
         if args.command == "organize" or getattr(args, "organize", False):
@@ -84,12 +85,32 @@ def main():
             else:
                 print("[*] Berkas sudah berada di folder yang sesuai.")
 
+            if res.get("ide_scaffold") and res["ide_scaffold"]["type"] != "none":
+                sc = res["ide_scaffold"]
+                if sc["type"] == "java_netbeans":
+                    print(f"[+] Proyek Apache NetBeans (Maven) siap di: Code/")
+                    print(f"    -> File pom.xml & nbactions.xml terpasang")
+                    print(f"    -> Package: {sc.get('package')} (Main Class: {sc.get('main_class')})")
+                elif sc["type"] == "cpp_codeblocks":
+                    print(f"[+] Proyek Code::Blocks (.cbp) siap di: Code/")
+                    for cbp in sc.get("created_cbp", []):
+                        print(f"    -> {os.path.relpath(cbp, target)}")
+
             print()
             print(format_context_summary(res["context"]))
         else:
+            code_dir = os.path.join(target, "Code")
             os.makedirs(os.path.join(target, "Modul"), exist_ok=True)
             os.makedirs(os.path.join(target, "Laprak", "screenshots"), exist_ok=True)
-            os.makedirs(os.path.join(target, "Code"), exist_ok=True)
+            os.makedirs(code_dir, exist_ok=True)
+
+            if getattr(args, "lang", None):
+                sc = auto_scaffold_code_directory(code_dir, language=args.lang, project_name="ProjekPraktikum")
+                if sc["type"] == "java_netbeans":
+                    print(f"[NgeLaprak] Proyek Apache NetBeans Maven berhasil dibuat di: {code_dir}")
+                elif sc["type"] == "cpp_codeblocks":
+                    print(f"[NgeLaprak] Proyek Code::Blocks (.cbp) berhasil dibuat di: {code_dir}")
+
             print(f"[NgeLaprak] Struktur direktori berhasil dibuat di: {target}")
             print("  - Modul/      : Taruh berkas panduan modul PDF/Word & TP")
             print("  - Laprak/     : Tempat berkas template dan output (.docx, .pdf)")

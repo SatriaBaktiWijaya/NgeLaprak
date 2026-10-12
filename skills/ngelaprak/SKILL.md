@@ -82,12 +82,43 @@ Sampaikan temuan dalam 1–2 kalimat santai:
 
 ---
 
-### Langkah 2: Eksekusi & Validasi Kode
-Sebelum membuat laporan, pastikan kode berfungsi:
-- Tuliskan dan simpan file kode di folder `Code/`.
-- Kompilasi dan jalankan kode menggunakan tool yang sesuai (`g++`, `mvn`, `python`, `node`, dll.).
-- Pastikan tidak ada compile error.
-- Tangkap output program (console stdout, GUI window, database grid).
+### Langkah 2: Standarisasi Struktur Proyek IDE & Eksekusi Kode
+Ketika mengimplementasikan atau menata kode praktikum mahasiswa di folder `Code/`, AI Agent **WAJIB** menerapkan struktur proyek resmi sesuai IDE target agar mahasiswa dapat langsung membukanya di Apache NetBeans atau Code::Blocks tanpa error:
+
+1. **Untuk Java (Target IDE: Apache NetBeans)**:
+   - **WAJIB** menggunakan struktur standar **Maven Project**:
+     ```
+     Code/
+     ├── pom.xml                                  <- Konfigurasi Maven (Release 21/25 + dependencies)
+     ├── nbactions.xml                            <- Pemetaan shortcut Run F6 NetBeans ke Main class
+     └── src/
+         └── main/
+             └── java/
+                 └── {packageName}/               <- Package sesuai deklarasi 'package ...;'
+                     ├── *.java
+     ```
+   - **Auto-Dependency**: Jika kode menggunakan database (JDBC, MySQL, DriverManager, ResultSet), **WAJIB** sertakan dependensi `mysql-connector-j:8.3.0` di `pom.xml`.
+   - **Main Class**: Pastikan `<exec.mainClass>` di `pom.xml` dan `nbactions.xml` menunjuk tepat ke kelas utama (misal `modul4.Main`).
+   - *Dengan struktur ini, saat mahasiswa membuka NetBeans via `File -> Open Project` ke folder `Code`, NetBeans langsung memunculkan ikon cangkir kopi proyek resmi, tidak ada peringatan "Incorrect Package", dan tombol Run (F6) langsung berjalan lancar.*
+
+2. **Untuk C / C++ (Target IDE: Code::Blocks)**:
+   - **WAJIB** menyertakan berkas proyek Code::Blocks (`.cbp`):
+     ```
+     Code/
+     ├── {ProjectName}.cbp                        <- File project Code::Blocks
+     ├── main.cpp
+     ├── {header}.h
+     └── {source}.cpp
+     ```
+   - **Penanganan Multi-Task (Banyak Fungsi `main()`)**:
+     - Jika modul praktikum memiliki beberapa soal terpisah yang masing-masing memiliki fungsi `main()` (misal `soal1.cpp`, `soal2.cpp`, `soal3.cpp`), **JANGAN** satukan dalam 1 file `.cbp` root (karena GCC akan memicu linker error `multiple definition of 'main'`).
+     - **Pisahkan ke subfolder per tugas** (misal `Code/soal1/soal1.cbp`, `Code/soal2/soal2.cbp`) sehingga setiap project `.cbp` memiliki tepat 1 fungsi `main()`.
+   - *Dengan struktur ini, mahasiswa cukup mendua-klik file `.cbp` untuk membuka project tree (Sources & Headers) di Code::Blocks dan langsung mengompilasi/menjalankan via shortcut F9.*
+
+3. **Kompilasi & Validasi Kode**:
+   - Kompilasi dan jalankan kode menggunakan tool yang sesuai (`mvn compile`, `g++`, `python`, `node`, dll.).
+   - Pastikan tidak ada compile error.
+   - Tangkap output program (console stdout, GUI window, database grid).
 
 ---
 
@@ -152,7 +183,9 @@ Tuliskan penjelasan kode dan dasar teori dengan aturan berikut:
 ├── Modul/               <- Berkas modul praktikum & TP dari dosen/asisten (PDF / Word)
 ├── Laprak/              <- Template contoh laprak lama & tempat hasil .docx / .pdf
 │   └── screenshots/     <- Tempat screenshot manual mahasiswa / hasil render
-└── Code/                <- Projek kodingan praktikum mahasiswa
+└── Code/                <- Projek kodingan praktikum resmi IDE
+    ├── (Untuk Java)     -> pom.xml, nbactions.xml, src/main/java/{pkg}/*.java
+    └── (Untuk C++)      -> {Project}.cbp, main.cpp, *.h, *.cpp
 ```
 
 ---
@@ -160,16 +193,18 @@ Tuliskan penjelasan kode dan dasar teori dengan aturan berikut:
 ## 3. Perintah CLI Pendukung
 
 ```bash
-# Auto-scaffold dan rapikan file tercecer ke Modul/, Laprak/, dan Code/
+# Auto-scaffold dan rapikan file tercecer ke Modul/, Laprak/, dan Code/ (auto setup NetBeans / CodeBlocks)
 python -m ngelaprak organize
 
 # Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE tanpa memindahkan file
 python -m ngelaprak analyze
 
-# Inisialisasi struktur folder kosong
-python -m ngelaprak init
+# Inisialisasi struktur folder laporan (bisa langsung spesifik IDE: --lang java / --lang cpp)
+python -m ngelaprak init --lang java
+python -m ngelaprak init --lang cpp
 
 # Render screenshot IDE otentik
+python -m ngelaprak render --ide netbeans --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
 python -m ngelaprak render --ide codeblocks --file Code/main.cpp --out Laprak/screenshots/code1.png
 
 # Ekspor berkas Word ke PDF

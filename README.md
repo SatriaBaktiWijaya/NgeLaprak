@@ -50,6 +50,7 @@ Dapat digunakan untuk berbagai mata kuliah pemrograman dan informatika:
 ### 5. 🧠 Smart Context & Auto-Scaffold (Zero-Setup Workspace)
 * **File Tercecer? Nggak Masalah!**: Cukup taruh berkas materi, TP, atau laprak lama di satu folder tanpa subfolder. `NgeLaprak` otomatis membuat struktur direktori (`Modul/`, `Laprak/`, `Code/`) dan memindahkan setiap berkas ke folder yang sesuai.
 * **Deteksi Mandiri Tanpa Repot**: AI secara otomatis mengenali mata kuliah, modul target, identitas mahasiswa (Nama & NIM) dari riwayat laprak lama, bahasa kodingan, hingga IDE yang cocok.
+* **Struktur Proyek Resmi IDE**: Otomatis menata proyek standar **Apache NetBeans (Maven)** (`pom.xml`, `nbactions.xml`, `src/main/java/{pkg}/`) untuk Java, dan **Code::Blocks** (`.cbp`) untuk C++, sehingga kodingan praktikum langsung dapat dibuka (*Open Project*) dan di-Run tanpa konfigurasi manual.
 
 ---
 
@@ -145,8 +146,9 @@ python -m ngelaprak organize
 # Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE
 python -m ngelaprak analyze
 
-# Inisialisasi struktur folder laporan di direktori kerja
-python -m ngelaprak init
+# Inisialisasi struktur folder laporan (bisa langsung spesifik IDE: --lang java / --lang cpp)
+python -m ngelaprak init --lang java
+python -m ngelaprak init --lang cpp
 
 # Render screenshot kode IDE
 python -m ngelaprak render --ide netbeans --file ./src/Main.java --out ./shot.png

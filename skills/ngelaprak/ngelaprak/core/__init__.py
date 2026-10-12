@@ -5,6 +5,11 @@ from .analyzer import (
     infer_workspace_context,
     organize_workspace
 )
+from .project_scaffolder import (
+    scaffold_java_netbeans_project,
+    scaffold_cpp_codeblocks_project,
+    auto_scaffold_code_directory
+)
 from .docx_builder import LaprakDocxBuilder
 from .pdf_exporter import export_docx_to_pdf
 
@@ -14,6 +19,9 @@ __all__ = [
     "classify_file",
     "infer_workspace_context",
     "organize_workspace",
+    "scaffold_java_netbeans_project",
+    "scaffold_cpp_codeblocks_project",
+    "auto_scaffold_code_directory",
     "LaprakDocxBuilder",
     "export_docx_to_pdf"
 ]

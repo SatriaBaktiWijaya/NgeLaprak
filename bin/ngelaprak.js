@@ -107,9 +107,9 @@ CARA INSTALL KE AI AGENT:
 
 PERINTAH CLI:
   npx ngelaprak install          Pasang skill & dependensi Python ke sistem
-  npx ngelaprak organize         Auto-scaffold & rapikan file root ke Modul/, Laprak/, Code/
+  npx ngelaprak organize         Auto-scaffold & tata proyek resmi IDE (NetBeans/CodeBlocks)
   npx ngelaprak analyze          Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE
-  npx ngelaprak init             Buat struktur folder laprak kosong
+  npx ngelaprak init             Buat struktur folder laprak (opsi: --lang java / --lang cpp)
   npx ngelaprak render           Render screenshot IDE otentik
   npx ngelaprak export-pdf       Konversi Word (.docx) ke PDF (.pdf)
 

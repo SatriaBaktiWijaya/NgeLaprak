@@ -534,10 +534,22 @@ def organize_workspace(workspace_dir, dry_run=False):
     # Re-infer context after organizing
     context = infer_workspace_context(workspace_dir)
 
+    # Automatically scaffold IDE project structure (Maven for Java, .cbp for C++)
+    ide_scaffold = None
+    if not dry_run and os.path.exists(code_dir):
+        from .project_scaffolder import auto_scaffold_code_directory
+        clean_proj_name = re.sub(r'[^a-zA-Z0-9_\-]', '', context.get("course_name", "Projek").replace(" ", "")) or "Projek"
+        ide_scaffold = auto_scaffold_code_directory(
+            code_dir,
+            language=context.get("language"),
+            project_name=clean_proj_name
+        )
+
     return {
         "workspace_dir": workspace_dir,
         "scaffolded": len(moved_files) > 0,
         "created_dirs": created_dirs,
         "moved_files": moved_files,
+        "ide_scaffold": ide_scaffold,
         "context": context
     }
