@@ -71,5 +71,65 @@ class TestCore(unittest.TestCase):
             self.assertTrue(ctx["has_code"])
             self.assertEqual(ctx["student_nim"], "109092500017")
 
+    def test_docx_template_section_setters_and_typography(self):
+        import docx
+        tpl_path = os.path.join(os.path.dirname(__file__), "..", "ngelaprak", "templates", "template_kampus.docx")
+        self.assertTrue(os.path.exists(tpl_path))
+
+        builder = LaprakDocxBuilder(template_path=tpl_path)
+        builder.set_cover_title("PERTEMUAN 5", "MODUL 5: TESTING JDBC")
+        builder.set_student_info("Test Mahasiswa", "109092599999")
+        builder.set_objectives([
+            "1. Memahami konsep konektivitas database.",
+            "2. Mengimplementasikan operasi query CRUD.",
+        ])
+        builder.set_tools("NetBeans 21, JDK 21, MySQL 8.0")
+        builder.set_dasar_teori([
+            "JDBC adalah standar antarmuka pemrograman aplikasi pada Java.",
+            "Arsitektur MVC memisahkan logika akses data dari tampilan visual."
+        ])
+        builder.clear_guided_section(keep_until_p_index=35)
+        builder.add_code_item("1.) Koneksi.java", [], "Penjelasan kelas koneksi database.")
+        builder.add_output_section([])
+
+        out_docx = os.path.join(TEST_OUT_DIR, "test_typography_result.docx")
+        builder.save(out_docx)
+
+        # Inspect resulting document
+        doc = docx.Document(out_docx)
+        secs = builder.find_section_indices()
+
+        # 1. Verify Objectives are strictly non-bold
+        start_obj = secs["TUJUAN"] + 1
+        end_obj = secs["TOOL"]
+        for p_idx in range(start_obj, end_obj):
+            p = doc.paragraphs[p_idx]
+            for r in p.runs:
+                if r.text.strip():
+                    self.assertFalse(r.bold, f"Objective run should not be bold: {r.text!r}")
+
+        # 2. Verify Tool is strictly non-bold
+        p_tool = doc.paragraphs[secs["TOOL"] + 1]
+        for r in p_tool.runs:
+            if r.text.strip():
+                self.assertFalse(r.bold, f"Tool run should not be bold: {r.text!r}")
+
+        # 3. Verify Dasar Teori paragraphs are strictly non-bold
+        start_dt = secs["DASAR TEORI"] + 1
+        end_dt = secs["GUIDED"]
+        for p_idx in range(start_dt, end_dt):
+            p = doc.paragraphs[p_idx]
+            for r in p.runs:
+                if r.text.strip():
+                    self.assertFalse(r.bold, f"Dasar Teori run should not be bold: {r.text!r}")
+
+        # 4. Verify main headings ARE bold
+        for h_key in ["TUJUAN", "TOOL", "DASAR TEORI", "GUIDED"]:
+            p_h = doc.paragraphs[secs[h_key]]
+            for r in p_h.runs:
+                if r.text.strip():
+                    self.assertTrue(r.bold, f"Main heading {h_key} must be bold: {r.text!r}")
+
 if __name__ == "__main__":
     unittest.main()
+

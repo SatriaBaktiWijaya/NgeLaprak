@@ -152,17 +152,83 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
 
 Tuliskan penjelasan kode dan dasar teori dengan aturan berikut:
 - **Gaya Bahasa Mahasiswa Santai & Pragmatis**: Singkat, jelas, langsung ke fungsi kode (*to the point*).
-- **Format Paragraf & Tipografi Penjelasan**:
-  - Teks penjelasan **JANGAN di-bold** (`bold = False`).
-  - Kalimat pertama **wajib menjorok ke dalam** (*first-line indent* ~1 cm / 0.4 inci).
-  - Teks rata kanan-kiri (*Justified*) dengan spasi baris 1.15 dan font Times New Roman 11pt.
 - **Hindari Ciri Bahasa AI**:
   - JANGAN gunakan kata-kata klise robotik: *"Kode ini mendemonstrasikan implementasi komprehensif...", "Melalui arsitektur ini, integritas data terjamin..."*.
   - GUNAKAN gaya natural mahasiswa: *"Fungsi ini dipake buat...", "Di sini kita inisialisasi struct kendaraan...", "Bagian ini buat nampilin data yang udah diinput..."*.
 
 ---
 
-### Langkah 5: Perakitan Dokumen Word (`.docx`) & PDF (`.pdf`)
+### Langkah 5: Standarisasi Tipografi Dokumen Sesuai Template (Anti-Bold Liar)
+
+Untuk memastikan dokumen Word & PDF **100% identik dengan format acuan kampus/asisten** dan tidak terjadi kesalahan teks tebal (*bold*) yang berlebihan:
+
+#### 1. Tabel Standarisasi Elemen & Font Dokumen:
+
+| Bagian Dokumen | Elemen Teks | Jenis Font | Ukuran Font | Status Bold | Alignment | Indentasi / Catatan |
+|---|---|---|---|---|---|---|
+| **Cover** | Judul Modul & Pertemuan | Times New Roman | 14 pt | **Bold (`True`)** | Center | Line spacing 1.15 |
+| **Cover** | Nama Mahasiswa | Times New Roman | 12 pt | **Bold (`True`)** | Left / Tab | Label & Nama Mahasiswa |
+| **Cover** | Nama (NIM) | Times New Roman | 12 pt | **Non-Bold (`False`)** | Left / Tab | Angka NIM tidak di-bold |
+| **Cover** | Asisten Praktikum | Times New Roman | 12 pt | **Non-Bold (`False`)** | Left / Tab | Nama & NIM asisten tidak bold |
+| **Bab Utama** | `I. TUJUAN`, `II. TOOL`, `III. DASAR TEORI`, `IV. GUIDED` | Times New Roman | 14 pt | **Bold (`True`)** | Justify | Spasi Before 10pt, After 4pt |
+| **I. TUJUAN** | Butir Poin (`1. ...`, `2. ...`) | Times New Roman | 12 pt | **Non-Bold (`False`)** | Justify | Spasi After 2pt |
+| **II. TOOL** | Deskripsi Tool (`NetBeans, JDK 25...`) | Times New Roman | 11 pt | **Non-Bold (`False`)** | Left | Left Indent 0.4 inci |
+| **III. DASAR TEORI**| Paragraf Penjelasan Teori | Times New Roman | 12 pt | **Non-Bold (`False`)** | **Justify** | **First-line indent ~0.35–0.4 in (~0.8 cm)**, spasi 1.15 |
+| **IV. GUIDED** | Sub-item Kode (`1.) TestJDBC.java`) | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 8pt, After 2pt |
+| **IV. GUIDED** | Label `Kode` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 4pt, After 2pt |
+| **IV. GUIDED** | Gambar Screenshot Kode | - | - | - | Center | Lebar 5.2 inci, Spasi After 6pt |
+| **IV. GUIDED** | Label `Penjelasan` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 4pt, After 2pt |
+| **IV. GUIDED** | Paragraf Penjelasan Kode | Times New Roman | 11 pt | **Non-Bold (`False`)** | **Justify** | **First-line indent ~0.4 in (~1 cm)**, spasi 1.15 |
+| **Output** | Label `Output` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 8pt, After 2pt |
+| **Output** | Gambar Screenshot GUI / DB / CLI | - | - | - | Center | Lebar 4.8 inci, Spasi After 6pt |
+
+#### 2. Aturan Larangan Teknis Agent (Critical Rule):
+- **DILARANG KERAS** menggunakan `doc.paragraphs[x].text = "..."` secara mentah pada paragraf bawaan template!
+  - *Penyebab*: Jika paragraf tersebut memiliki style Heading (misal `Heading 1`), python-docx akan menghapus run sebelumnya dan membuat run baru tanpa tag `<w:b w:val="0"/>`, sehingga teks mewarisi sifat bold dari Heading. Inilah yang menyebabkan Tujuan dan Dasar Teori menjadi **bold semua**.
+- **WAJIB** gunakan metode terstruktur `LaprakDocxBuilder` yang telah terintegrasi dengan proteksi tipografi:
+  ```python
+  from ngelaprak.core import LaprakDocxBuilder, export_docx_to_pdf
+
+  builder = LaprakDocxBuilder(template_path=TEMPLATE_PATH)
+
+  # 1. Update Cover & Identitas
+  builder.set_cover_title("PERTEMUAN 4", "MODUL 4: GUI Part 3 & JDBC")
+  builder.set_student_info(nama="Khilma 'Ainunnajah", nim="109092530004")
+
+  # 2. Update Tujuan (Otomatis Non-Bold, 12pt Times New Roman)
+  builder.set_objectives([
+      "1. Mengenal konsep JDBC dan cara menghubungkan Java dengan database.",
+      "2. Menggunakan JDBC Driver dalam aplikasi Java.",
+      "3. Mengimplementasikan operasi CRUD (Create, Read, Update, Delete) dalam aplikasi berbasis GUI."
+  ])
+
+  # 3. Update Tool (Otomatis Non-Bold, 11pt Times New Roman, Indent Kiri)
+  builder.set_tools("NetBeans, JDK 25, MySQL / Laragon")
+
+  # 4. Update Dasar Teori (Otomatis Non-Bold, 12pt Times New Roman, Justified, First-Line Indent)
+  builder.set_dasar_teori(
+      "Java Database Connectivity (JDBC) adalah spesifikasi API standar dari Java yang digunain..."
+  )
+
+  # 5. Rakit Guided Items (Otomatis Non-Bold untuk judul item, label Kode, dan label Penjelasan)
+  builder.clear_guided_section(keep_until_p_index=35)
+  builder.add_code_item("1.) TestJDBC.java", [shot_test], "Penjelasan kode non-bold...")
+
+  # 6. Output Section (Otomatis Non-Bold untuk header Output)
+  builder.add_output_section([shot_gui, shot_db])
+
+  # 7. Simpan Dokumen (Otomatis menjalankan sanitize_document_typography())
+  builder.save(docx_output)
+
+  # 8. Ekspor PDF
+  export_docx_to_pdf(docx_output, pdf_output)
+  ```
+- **Fitur Otomatis `sanitize_document_typography()`**:
+  Fungsi ini berjalan otomatis saat `builder.save()` dipanggil. Seluruh paragraf tubuh dokumen akan dipindai; jika ada run yang secara tidak sengaja berstatus bold, sistem akan memaksanya menjadi `bold = False`. Hanya bab utama (`I. TUJUAN`, `II. TOOL`, `III. DASAR TEORI`, `IV. GUIDED`) yang diperbolehkan berstatus bold.
+
+---
+
+### Langkah 6: Perakitan Dokumen Word (`.docx`) & PDF (`.pdf`)
 
 1. **Tata Letak & Spasi Halaman**:
    - Iris kode panjang menjadi ~20–25 baris per gambar agar tidak memicu pemotongan halaman janggal.
