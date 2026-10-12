@@ -42,12 +42,12 @@ function installSkill() {
   const pyCmd = findPython();
   console.log(`[OK] Python terdeteksi: ${pyCmd}`);
 
-  console.log('[*] Memasang dependensi Python (python-docx, pillow)...');
+  console.log('[*] Memasang dependensi Python (python-docx, pillow, pypdf, pdfplumber)...');
   try {
-    execSync(`${pyCmd} -m pip install python-docx pillow`, { stdio: 'inherit' });
+    execSync(`${pyCmd} -m pip install python-docx pillow pypdf pdfplumber`, { stdio: 'inherit' });
     console.log('[OK] Dependensi Python siap!\n');
   } catch (err) {
-    console.warn('[!] Gagal menjalankan pip otomatis, pastikan python-docx & pillow terpasang manual.');
+    console.warn('[!] Gagal menjalankan pip otomatis, pastikan python-docx, pillow, pypdf, & pdfplumber terpasang manual.');
   }
 
   // 1. Install to Antigravity / Gemini global config
