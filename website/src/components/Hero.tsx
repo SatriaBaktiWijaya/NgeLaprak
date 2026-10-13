@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Terminal, Copy, Check, Sparkles, FileCode, FileText, ArrowRight, ShieldCheck, Code2, Download, Eye, School, TerminalSquare } from 'lucide-react'
+import { Dithering } from '@paper-design/shaders-react'
 
 export const Hero: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'npx' | 'powershell' | 'bash'>('npx')
@@ -20,6 +21,36 @@ export const Hero: React.FC = () => {
 
   return (
     <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+      {/* Dynamic Dithering Shader Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+        <Dithering
+          width="100%"
+          height="100%"
+          colorBack="#090a0f"
+          colorFront="#6366f1"
+          shape="sphere"
+          type="4x4"
+          size={2}
+          speed={0.75}
+          scale={0.75}
+          className="w-full h-full opacity-35 md:opacity-45"
+        />
+        {/* Soft radial vignette so text is crystal clear while dither sphere glows around it */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(9,10,15,0.25)_0%,transparent_50%,#090A0F_85%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#090A0F]/70 via-transparent to-[#090A0F]" />
+      </div>
+
+      {/* Background Telkom University Logo & Ambient Crimson Glow */}
+      <div className="absolute top-[37%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none z-0 flex items-center justify-center">
+        {/* Subtle Telkom red ambient aura */}
+        <div className="absolute w-[360px] h-[360px] sm:w-[480px] sm:h-[480px] bg-[#EE2E24]/[0.08] blur-[100px] rounded-full pointer-events-none" />
+        <img
+          src="/images/logo_telkom.png"
+          alt="Telkom University Logo Background"
+          className="w-[240px] sm:w-[340px] md:w-[420px] object-contain opacity-[0.11] mix-blend-screen filter drop-shadow-[0_0_60px_rgba(238,46,36,0.22)]"
+        />
+      </div>
+
       <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 text-center">
         {/* Subtle Category Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-slate-300 text-xs font-medium mb-6 backdrop-blur-xl shadow-lg">
@@ -30,7 +61,7 @@ export const Hero: React.FC = () => {
         </div>
 
         {/* Display Headline with Tight Tracking */}
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-[-0.035em] text-white mb-6 leading-[1.05] font-sans max-w-4xl mx-auto">
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-[-0.035em] text-white mb-6 leading-[1.05] font-sans max-w-4xl mx-auto drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
           Ubah 3 Berkas.{' '}
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-100 via-indigo-200 to-indigo-400">
             Laporan Lab Sempurna.
@@ -38,7 +69,7 @@ export const Hero: React.FC = () => {
         </h1>
 
         {/* Minimal High-Contrast Subtitle */}
-        <p className="text-sm sm:text-base md:text-lg text-slate-300/80 max-w-2xl mx-auto mb-9 leading-relaxed font-normal">
+        <p className="text-sm sm:text-base md:text-lg text-slate-200/90 max-w-2xl mx-auto mb-9 leading-relaxed font-normal drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
           Skill AI Agent yang otomatis merapikan folder, membuat kodingan resmi IDE (NetBeans/Code::Blocks), render screenshot konsol interaktif, dan menyusun dokumen Word & PDF siap kumpul.
         </p>
 
