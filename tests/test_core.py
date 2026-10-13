@@ -130,6 +130,127 @@ class TestCore(unittest.TestCase):
                 if r.text.strip():
                     self.assertTrue(r.bold, f"Main heading {h_key} must be bold: {r.text!r}")
 
+    def test_non_telkom_template_detection_and_builder(self):
+        import docx
+        from ngelaprak.core import analyze_template_docx
+        
+        # 1. Create a non-Telkom template docx (e.g. Institut Teknologi Sepuluh Nopember with table cover and NRP)
+        tpl_path = os.path.join(TEST_OUT_DIR, "template_its_test.docx")
+        doc = docx.Document()
+        doc.add_paragraph("LAPORAN PRAKTIKUM PEMROGRAMAN WEB")
+        doc.add_paragraph("MODUL 3: BACKEND REST API")
+        
+        # Add cover table (common in ITS / UI / UGM)
+        table = doc.add_table(rows=3, cols=2)
+        table.rows[0].cells[0].paragraphs[0].text = "Nama"
+        table.rows[0].cells[1].paragraphs[0].text = ": Budi Prakoso"
+        table.rows[1].cells[0].paragraphs[0].text = "NRP"
+        table.rows[1].cells[1].paragraphs[0].text = ": 5025211001"
+        table.rows[2].cells[0].paragraphs[0].text = "Kelas"
+        table.rows[2].cells[1].paragraphs[0].text = ": Teknik Informatika A"
+        
+        doc.add_paragraph("DEPARTEMEN TEKNIK INFORMATIKA")
+        doc.add_paragraph("FAKULTAS TEKNOLOGI ELEKTRO DAN INFORMATIKA CERDAS")
+        doc.add_paragraph("INSTITUT TEKNOLOGI SEPULUH NOPEMBER")
+        doc.add_paragraph("2026")
+        doc.save(tpl_path)
+
+        # 2. Test analyze_template_docx
+        meta = analyze_template_docx(tpl_path)
+        self.assertEqual(meta["student_name"], "Budi Prakoso")
+        self.assertEqual(meta["student_nim"], "5025211001")
+        self.assertEqual(meta["id_type"], "NRP")
+        self.assertIn("INSTITUT TEKNOLOGI SEPULUH NOPEMBER", meta["kampus"].upper())
+        self.assertIn("DEPARTEMEN TEKNIK INFORMATIKA", meta["prodi"].upper())
+        self.assertIn("FAKULTAS TEKNOLOGI ELEKTRO", meta["fakultas"].upper())
+
+        # 3. Test LaprakDocxBuilder with non-Telkom template
+        builder = LaprakDocxBuilder(template_path=tpl_path)
+        builder.set_student_info(
+            nama="Siti Aminah",
+            nim="5025211099",
+            universitas="INSTITUT TEKNOLOGI SEPULUH NOPEMBER SURABAYA"
+        )
+        out_its = os.path.join(TEST_OUT_DIR, "its_result.docx")
+        builder.save(out_its)
+
+        # Verify updated values in table and paragraphs
+        doc_res = docx.Document(out_its)
+        res_text = "\n".join(p.text for p in doc_res.paragraphs)
+        tbl_text = "\n".join(" ".join(c.text for c in r.cells) for t in doc_res.tables for r in t.rows)
+
+        self.assertIn("Siti Aminah", tbl_text)
+        self.assertIn("5025211099", tbl_text)
+        self.assertIn("INSTITUT TEKNOLOGI SEPULUH NOPEMBER SURABAYA", res_text)
+
+    def test_create_default_cover_and_logo(self):
+        builder = LaprakDocxBuilder()
+        builder.create_default_cover(
+            title="LAPORAN PRAKTIKUM BASIS DATA",
+            pertemuan="PERTEMUAN 2",
+            modul_title="MODUL 2: DDL & DML",
+            nama="Ahmad Dahlan",
+            nim="21081010055",
+            prodi="PROGRAM STUDI SISTEM INFORMASI",
+            fakultas="FAKULTAS ILMU KOMPUTER",
+            universitas="UNIVERSITAS INDONESIA",
+            tahun="2026"
+        )
+        builder.add_main_heading("I. TUJUAN")
+        builder.add_paragraph_text("1. Mahasiswa memahami query DDL.")
+        
+        out_def = os.path.join(TEST_OUT_DIR, "default_cover_test.docx")
+        builder.save(out_def)
+        self.assertTrue(os.path.exists(out_def))
+        self.assertGreater(os.path.getsize(out_def), 1000)
+
+    def test_interactive_cli_simulator(self):
+        from ngelaprak.core import (
+            generate_interactive_scenario,
+            build_interactive_terminal_lines,
+            render_interactive_session_to_image
+        )
+
+        # 1. Test scenario generation for stack & queue
+        steps_stack = generate_interactive_scenario(
+            scenario_type="stack",
+            student_name="Satria Bakti Wijaya",
+            student_nim="109092500017"
+        )
+        self.assertGreater(len(steps_stack), 5)
+        # Verify user input steps exist
+        input_steps = [s for s in steps_stack if s.get("type") == "input"]
+        self.assertGreaterEqual(len(input_steps), 3)
+
+        # 2. Test line building
+        lines = build_interactive_terminal_lines(
+            prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
+            compile_cmd="g++ -o main.exe main.cpp",
+            run_cmd=".\\main.exe",
+            dialog_steps=steps_stack,
+            runner_style="codeblocks"
+        )
+        self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> g++ -o main.exe main.cpp", lines)
+        self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> .\\main.exe", lines)
+        # Check token formatting present
+        self.assertTrue(any("[[INPUT]]" in l for l in lines))
+
+        # 3. Test rendering to PNG image
+        out_shot = os.path.join(TEST_OUT_DIR, "test_interactive_cli.png")
+        res = render_interactive_session_to_image(
+            prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
+            scenario_type="stack",
+            out_path=out_shot
+        )
+        self.assertTrue(os.path.exists(res))
+        self.assertGreater(os.path.getsize(res), 1000)
+
+    def test_extract_cover_logo_from_pdf_nonexistent(self):
+        from ngelaprak.core import extract_cover_logo_from_pdf
+        res = extract_cover_logo_from_pdf("nonexistent.pdf")
+        self.assertIsNone(res)
+
 if __name__ == "__main__":
     unittest.main()
+
 

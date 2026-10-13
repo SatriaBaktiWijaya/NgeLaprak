@@ -56,9 +56,16 @@ AI Agent menganalisis berkas-berkas yang ada secara mandiri tanpa merepotkan pen
 4. **Deteksi Bahasa Pemrograman & Pilihan IDE**:
    - Jika ada kodingan di `Code/`, periksa ekstensi file (`.cpp` -> C++/Code::Blocks, `.java` -> Java/NetBeans, `.sql` -> SQL/DBeaver, `.py` -> Python/VS Code).
    - Jika folder `Code/` masih kosong, periksa kata kunci di modul materi (misal: `#include <iostream>`, `struct`, `cin` -> C++/Code::Blocks).
-5. **Deteksi Ketersediaan Kode**:
+5. **Deteksi Institusi, Kampus & Identitas (Agnostik Multi-Kampus)**:
+   - **Institusi**: Mendeteksi nama universitas, institut, politeknik, sekolah tinggi, atau akademi mana pun (Telkom, UI, ITB, UGM, ITS, Undip, Brawijaya, Polban, PENS, dll.).
+   - **Identitas**: Fleksibel mendeteksi format nomor induk mahasiswa (`NIM`, `NPM`, `NRP`, `NISN`) baik dalam paragraf bertab maupun di dalam tabel identitas cover.
+   - **Fakultas & Prodi**: Mengekstrak nama fakultas/sekolah dan program studi/jurusan/departemen langsung dari dokumen referensi tanpa memaksakan nilai default.
+   - **Preservasi & Ekstraksi Logo**:
+     - Jika template berformat `.docx`: Seluruh logo dan gambar cover otomatis dipertahankan pada posisi aslinya.
+     - Jika template berformat `.pdf`: Gambar/logo cover diekstrak otomatis via `extract_cover_images_from_pdf` dan disematkan kembali ke cover baru.
+6. **Deteksi Ketersediaan Kode**:
    - Jika kodingan belum tersedia di `Code/`, Agent secara mandiri memahami bahwa kodingan perlu dibuatkan di folder `Code/`, diuji coba jalannya, lalu diambil tangkapan layar outputnya.
-6. **Saran Nama File Output Otomatis**:
+7. **Saran Nama File Output Otomatis**:
    - Menyesuaikan format kampus dari template lama, misal `STRUKTUR-DATA_MOD-2_...` diubah otomatis menjadi `STRUKTUR-DATA_MOD-3_109092500017_SatriaBaktiWijaya.docx` (dan `.pdf`).
 
 **Komunikasi Proaktif & Ringkas kepada Pengguna:**
@@ -72,7 +79,7 @@ Sampaikan temuan dalam 1–2 kalimat santai:
    - Ekstrak: Judul Pertemuan/Modul, Tujuan Praktikum, Tool yang digunakan, Dasar Teori, dan daftar tugas (Guided, Unguided, Latihan, Tugas Praktikum).
 2. **Template Laprak Lama (`Laprak/*.docx` / `*.pdf`)**:
    - Ekstrak "DNA" laporan:
-     - **Cover**: Format judul, logo kampus, format nama mahasiswa, NIM, asisten praktikum, prodi, fakultas, institusi, dan tahun.
+     - **Cover**: Format judul, logo kampus (posisi tengah/kiri, 1 atau 2 logo), format nama mahasiswa, NIM/NPM/NRP, asisten praktikum, prodi/jurusan, fakultas, institusi, dan tahun.
      - **Tipografi & Spasi**: Font (Times New Roman / Arial / Calibri), margin (4-4-3-3 atau 1 inci), spasi 1.15.
      - **Sistem Penomoran**: Romawi (I. TUJUAN, II. TOOL, III. DASAR TEORI, IV. GUIDED) atau huruf/angka.
 3. **Kode Program (`Code/`)**:
@@ -139,8 +146,11 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
        - Tema clean VS Code Dark+ atau Light+.
      - **Basis Data / SQL (`database_renderer.py`)**:
        - Tampilan editor query DBeaver / Navicat lengkap dengan syntax highlight dan tabel data grid baris & kolom hasil eksekusi.
-     - **Terminal / Console (`terminal_renderer.py`)**:
+     - **Terminal / Console & Simulasi CLI Interaktif (`terminal_renderer.py` & `cli_simulator.py`)**:
        - Console Command Prompt Windows / PowerShell / Bash terminal otentik.
+       - **Simulasi Input Interaktif Mahasiswa**: Menampilkan alur interaksi multi-step (misal operasi CRUD, Stack push/pop, Queue antrian, Traversal Tree, Sorting pass-by-pass) dengan penanda visual input keyboard mahasiswa (`[[INPUT]]`), judul menu (`[[HEADER]]`), dan hasil sukses (`[[SUCCESS]]`). Menghindarkan kesan program yang hanya di-run 1 detik tanpa interaksi.
+     - **Ekstraksi Logo Cover PDF Otomatis (`extract_cover_logo_from_pdf`)**:
+       - Jika pengguna hanya menyertakan berkas laporan lama atau panduan berformat `.pdf` tanpa file Word `.docx`, sistem secara mandiri mengekstrak logo cover resolusi terbaik dari halaman 1 PDF dan menyimpannya ke `Laprak/screenshots/cover_logo.png` untuk disematkan ke cover Word baru.
      - **Jendela Java Swing Native (`gui_framer.py`)**:
        - Frame Windows 11 native dengan ikon cangkir Java 3D dan tombol vector native (Minimize, Maximize, Close X).
      - **Anti-Plagiarisme Dimensi Gambar**:
@@ -272,6 +282,10 @@ python -m ngelaprak init --lang cpp
 # Render screenshot IDE otentik
 python -m ngelaprak render --ide netbeans --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
 python -m ngelaprak render --ide codeblocks --file Code/main.cpp --out Laprak/screenshots/code1.png
+
+# Simulasi & render output CLI interaktif mahasiswa (multi-step input)
+python -m ngelaprak simulate-cli --type stack --out Laprak/screenshots/cli_interactive.png
+python -m ngelaprak simulate-cli --type queue --out Laprak/screenshots/queue_interactive.png
 
 # Ekspor berkas Word ke PDF
 python -m ngelaprak export-pdf --docx Laprak/Laporan.docx
