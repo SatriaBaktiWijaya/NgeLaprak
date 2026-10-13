@@ -237,3 +237,23 @@ a:focus-visible, button:focus-visible, input:focus-visible {
 .animate-float {
   animation: float 5s ease-in-out infinite;
 }
+
+/* Infinite Marquee Carousel */
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}

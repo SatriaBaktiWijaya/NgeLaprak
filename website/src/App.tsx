@@ -3,6 +3,7 @@ import gsap from 'gsap'
 import { Navbar } from './components/Navbar'
 import { ShaderBackground } from './components/ShaderBackground'
 import { Hero } from './components/Hero'
+import { AgentEcosystem } from './components/AgentEcosystem'
 import { PipelineVisualizer } from './components/PipelineVisualizer'
 import { IdeGallery } from './components/IdeGallery'
 import { BeforeAfter } from './components/BeforeAfter'
@@ -57,6 +58,7 @@ export const App: React.FC = () => {
       {/* Main Sections */}
       <main className="relative z-10">
         <Hero />
+        <AgentEcosystem />
         <PipelineVisualizer />
         <IdeGallery />
         <BeforeAfter />
