@@ -236,6 +236,51 @@ def extract_cover_images_from_pdf(pdf_path, output_dir=None, max_images=3):
         pass
     return extracted
 
+def extract_cover_logo_from_pdf(pdf_path, output_dir=None, min_dimension=40):
+    """
+    Extracts the primary institutional logo from page 1 (cover) of a PDF.
+    Filters out tiny decorative elements, selects the best candidate,
+    saves it as 'cover_logo.png' in output_dir, and returns the file path.
+    """
+    if not os.path.exists(pdf_path):
+        return None
+    try:
+        import io
+        from PIL import Image
+        reader = pypdf.PdfReader(pdf_path)
+        if len(reader.pages) == 0 or not hasattr(reader.pages[0], 'images'):
+            return None
+
+        candidates = []
+        for idx, img in enumerate(reader.pages[0].images):
+            try:
+                pil_img = Image.open(io.BytesIO(img.data))
+                w, h = pil_img.size
+                if w >= min_dimension and h >= min_dimension:
+                    candidates.append((w * h, len(img.data), img.name, img.data))
+            except Exception:
+                if len(img.data) > 1024:
+                    candidates.append((len(img.data), len(img.data), img.name, img.data))
+
+        if not candidates:
+            return None
+
+        # Sort descending by size to get the main logo
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best = candidates[0]
+
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            logo_path = os.path.join(output_dir, "cover_logo.png")
+        else:
+            logo_path = os.path.join(os.path.dirname(os.path.abspath(pdf_path)), "cover_logo.png")
+
+        with open(logo_path, "wb") as f:
+            f.write(best[3])
+        return logo_path
+    except Exception:
+        return None
+
 def extract_cover_images_from_docx(docx_path, output_dir=None, max_images=3):
     """
     Extracts embedded images/logos from a DOCX template.
@@ -475,6 +520,9 @@ def infer_workspace_context(workspace_dir):
     kampus = ""
     reference_laprak_name = ""
 
+    has_docx_template = any(lp.lower().endswith(".docx") for lp in categories["laprak"])
+    cover_logo_path = None
+
     for l_path in categories["laprak"]:
         fn = os.path.basename(l_path)
         if fn.lower().endswith(".docx"):
@@ -501,6 +549,13 @@ def infer_workspace_context(workspace_dir):
             if meta.get("fakultas"): fakultas = meta["fakultas"]
             if meta.get("kampus"): kampus = meta["kampus"]
             reference_laprak_name = fn
+
+            # If no .docx template exists, automatically extract cover logo from PDF
+            if not has_docx_template and not cover_logo_path and meta.get("has_logo"):
+                logo_out_dir = os.path.join(workspace_dir, "Laprak", "screenshots")
+                extracted = extract_cover_logo_from_pdf(l_path, output_dir=logo_out_dir)
+                if extracted:
+                    cover_logo_path = extracted
 
     # Fallback course from modul / tp text if still empty
     if not course_name:
@@ -575,6 +630,7 @@ def infer_workspace_context(workspace_dir):
         "prodi": prodi,
         "fakultas": fakultas,
         "kampus": kampus,
+        "cover_logo_path": cover_logo_path,
         "language": language,
         "recommended_ide": recommended_ide,
         "suggested_filename": suggested_filename,

@@ -60,6 +60,15 @@ def main():
     parser_render.add_argument("--start", type=int, default=1, help="Baris awal")
     parser_render.add_argument("--end", type=int, default=None, help="Baris akhir")
 
+    # Command: simulate-cli
+    parser_sim = subparsers.add_parser("simulate-cli", help="Simulasi dan render screenshot terminal interaktif (multi-step input)")
+    parser_sim.add_argument("--type", choices=["stack", "queue", "crud", "tree", "sorting"], default="stack", help="Jenis skenario simulasi praktikum")
+    parser_sim.add_argument("--title", default=None, help="Judul program")
+    parser_sim.add_argument("--name", default="Satria Bakti Wijaya", help="Nama mahasiswa")
+    parser_sim.add_argument("--nim", default="109092500017", help="NIM mahasiswa")
+    parser_sim.add_argument("--dir", default=r"D:\COOLYEAH\Semester 3\Praktikum", help="Prompt direktori terminal")
+    parser_sim.add_argument("--out", default="screenshot_cli.png", help="Path gambar output")
+
     # Command: export-pdf
     parser_pdf = subparsers.add_parser("export-pdf", help="Ekspor berkas DOCX ke PDF")
     parser_pdf.add_argument("--docx", required=True, help="Path berkas .docx")
@@ -144,6 +153,18 @@ def main():
         elif args.ide == "database":
             render_database_view(query=content, out_path=args.out)
         print(f"[NgeLaprak] Screenshot {args.ide} berhasil disimpan ke: {args.out}")
+
+    elif args.command == "simulate-cli":
+        from ngelaprak.core.cli_simulator import render_interactive_session_to_image
+        out_shot = render_interactive_session_to_image(
+            prompt_dir=args.dir,
+            scenario_type=args.type,
+            out_path=args.out,
+            program_title=args.title,
+            student_name=args.name,
+            student_nim=args.nim
+        )
+        print(f"[NgeLaprak] Screenshot CLI interaktif ({args.type}) berhasil disimpan ke: {out_shot}")
 
     elif args.command == "export-pdf":
         from ngelaprak.core import export_docx_to_pdf

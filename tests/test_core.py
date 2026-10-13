@@ -204,6 +204,52 @@ class TestCore(unittest.TestCase):
         self.assertTrue(os.path.exists(out_def))
         self.assertGreater(os.path.getsize(out_def), 1000)
 
+    def test_interactive_cli_simulator(self):
+        from ngelaprak.core import (
+            generate_interactive_scenario,
+            build_interactive_terminal_lines,
+            render_interactive_session_to_image
+        )
+
+        # 1. Test scenario generation for stack & queue
+        steps_stack = generate_interactive_scenario(
+            scenario_type="stack",
+            student_name="Satria Bakti Wijaya",
+            student_nim="109092500017"
+        )
+        self.assertGreater(len(steps_stack), 5)
+        # Verify user input steps exist
+        input_steps = [s for s in steps_stack if s.get("type") == "input"]
+        self.assertGreaterEqual(len(input_steps), 3)
+
+        # 2. Test line building
+        lines = build_interactive_terminal_lines(
+            prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
+            compile_cmd="g++ -o main.exe main.cpp",
+            run_cmd=".\\main.exe",
+            dialog_steps=steps_stack,
+            runner_style="codeblocks"
+        )
+        self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> g++ -o main.exe main.cpp", lines)
+        self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> .\\main.exe", lines)
+        # Check token formatting present
+        self.assertTrue(any("[[INPUT]]" in l for l in lines))
+
+        # 3. Test rendering to PNG image
+        out_shot = os.path.join(TEST_OUT_DIR, "test_interactive_cli.png")
+        res = render_interactive_session_to_image(
+            prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
+            scenario_type="stack",
+            out_path=out_shot
+        )
+        self.assertTrue(os.path.exists(res))
+        self.assertGreater(os.path.getsize(res), 1000)
+
+    def test_extract_cover_logo_from_pdf_nonexistent(self):
+        from ngelaprak.core import extract_cover_logo_from_pdf
+        res = extract_cover_logo_from_pdf("nonexistent.pdf")
+        self.assertIsNone(res)
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -146,8 +146,11 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
        - Tema clean VS Code Dark+ atau Light+.
      - **Basis Data / SQL (`database_renderer.py`)**:
        - Tampilan editor query DBeaver / Navicat lengkap dengan syntax highlight dan tabel data grid baris & kolom hasil eksekusi.
-     - **Terminal / Console (`terminal_renderer.py`)**:
+     - **Terminal / Console & Simulasi CLI Interaktif (`terminal_renderer.py` & `cli_simulator.py`)**:
        - Console Command Prompt Windows / PowerShell / Bash terminal otentik.
+       - **Simulasi Input Interaktif Mahasiswa**: Menampilkan alur interaksi multi-step (misal operasi CRUD, Stack push/pop, Queue antrian, Traversal Tree, Sorting pass-by-pass) dengan penanda visual input keyboard mahasiswa (`[[INPUT]]`), judul menu (`[[HEADER]]`), dan hasil sukses (`[[SUCCESS]]`). Menghindarkan kesan program yang hanya di-run 1 detik tanpa interaksi.
+     - **Ekstraksi Logo Cover PDF Otomatis (`extract_cover_logo_from_pdf`)**:
+       - Jika pengguna hanya menyertakan berkas laporan lama atau panduan berformat `.pdf` tanpa file Word `.docx`, sistem secara mandiri mengekstrak logo cover resolusi terbaik dari halaman 1 PDF dan menyimpannya ke `Laprak/screenshots/cover_logo.png` untuk disematkan ke cover Word baru.
      - **Jendela Java Swing Native (`gui_framer.py`)**:
        - Frame Windows 11 native dengan ikon cangkir Java 3D dan tombol vector native (Minimize, Maximize, Close X).
      - **Anti-Plagiarisme Dimensi Gambar**:
@@ -279,6 +282,10 @@ python -m ngelaprak init --lang cpp
 # Render screenshot IDE otentik
 python -m ngelaprak render --ide netbeans --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
 python -m ngelaprak render --ide codeblocks --file Code/main.cpp --out Laprak/screenshots/code1.png
+
+# Simulasi & render output CLI interaktif mahasiswa (multi-step input)
+python -m ngelaprak simulate-cli --type stack --out Laprak/screenshots/cli_interactive.png
+python -m ngelaprak simulate-cli --type queue --out Laprak/screenshots/queue_interactive.png
 
 # Ekspor berkas Word ke PDF
 python -m ngelaprak export-pdf --docx Laprak/Laporan.docx
