@@ -184,25 +184,97 @@ def extract_metadata_from_pdf(pdf_path):
     # Institution info
     for line in text.splitlines()[:50]:
         l = line.strip()
-        if "PROGRAM STUDI" in l.upper():
+        if re.search(r'\b(PROGRAM\s+STUDI|PRODI|JURUSAN|DEPARTEMEN|DEPARTMENT)\b', l, re.IGNORECASE):
             meta["prodi"] = l
-        elif "FAKULTAS" in l.upper():
+        elif re.search(r'\b(FAKULTAS|FACULTY|SEKOLAH\s+PASCASARJANA|STEI|FMIPA|FTI|FTSL|FTMD|SBM|SITH|FSRD)\b', l, re.IGNORECASE):
             meta["fakultas"] = l
-        elif "UNIVERSITAS" in l.upper() or "TELKOM UNIVERSITY" in l.upper():
+        elif re.search(r'\b(UNIVERSITAS|UNIVERSITY|INSTITUT|INSTITUTE|POLITEKNIK|POLYTECHNIC|SEKOLAH\s+TINGGI|AKADEMI|COLLEGE)\b', l, re.IGNORECASE):
             meta["kampus"] = l
         elif re.match(r'^(202[4-9])$', l):
             meta["tahun"] = l
 
+    # Check for embedded cover logo in first page of PDF
+    meta["has_logo"] = False
+    meta["logo_count"] = 0
+    try:
+        reader = pypdf.PdfReader(pdf_path)
+        if len(reader.pages) > 0 and hasattr(reader.pages[0], 'images'):
+            meta["logo_count"] = len(reader.pages[0].images)
+            meta["has_logo"] = meta["logo_count"] > 0
+    except Exception:
+        pass
+
     return meta
+
+def extract_cover_images_from_pdf(pdf_path, output_dir=None, max_images=3):
+    """
+    Extracts embedded images/logos from page 1 (cover) of a PDF file.
+    Returns list of saved file paths (if output_dir) or list of (image_name, bytes).
+    """
+    extracted = []
+    if not os.path.exists(pdf_path):
+        return extracted
+    try:
+        reader = pypdf.PdfReader(pdf_path)
+        if len(reader.pages) > 0 and hasattr(reader.pages[0], 'images'):
+            page = reader.pages[0]
+            for idx, img in enumerate(page.images):
+                if idx >= max_images:
+                    break
+                ext = os.path.splitext(img.name)[1]
+                if not ext:
+                    ext = ".png"
+                if output_dir:
+                    os.makedirs(output_dir, exist_ok=True)
+                    out_path = os.path.join(output_dir, f"cover_logo_{idx + 1}{ext}")
+                    with open(out_path, "wb") as f:
+                        f.write(img.data)
+                    extracted.append(out_path)
+                else:
+                    extracted.append((img.name, img.data))
+    except Exception:
+        pass
+    return extracted
+
+def extract_cover_images_from_docx(docx_path, output_dir=None, max_images=3):
+    """
+    Extracts embedded images/logos from a DOCX template.
+    Returns list of saved file paths (if output_dir) or list of (image_name, bytes).
+    """
+    extracted = []
+    if not os.path.exists(docx_path):
+        return extracted
+    try:
+        doc = docx.Document(docx_path)
+        count = 0
+        for rel in doc.part.related_parts.values():
+            if "image" in rel.content_type:
+                count += 1
+                if count > max_images:
+                    break
+                base_name = os.path.basename(rel.target_ref)
+                if output_dir:
+                    os.makedirs(output_dir, exist_ok=True)
+                    out_path = os.path.join(output_dir, f"cover_logo_{count}_{base_name}")
+                    with open(out_path, "wb") as f:
+                        f.write(rel.blob)
+                    extracted.append(out_path)
+                else:
+                    extracted.append((base_name, rel.blob))
+    except Exception:
+        pass
+    return extracted
 
 def analyze_template_docx(template_path):
     """
     Extracts cover metadata, typography, and logo from an existing student laprak template.
+    Supports paragraphs and table-based cover layouts, flexible university names, and NIM/NPM/NRP.
     """
     meta = {
         "paragraphs": 0,
         "student_name": "",
         "student_nim": "",
+        "id_type": "NIM",
         "course": "",
         "module_number": None,
         "asisten": [],
@@ -211,6 +283,8 @@ def analyze_template_docx(template_path):
         "kampus": "",
         "tahun": "2026",
         "has_logo": False,
+        "logo_count": 0,
+        "has_multiple_logos": False,
         "margins": {}
     }
 
@@ -241,29 +315,79 @@ def analyze_template_docx(template_path):
             "right": s.right_margin.pt
         }
 
-    for p in doc.paragraphs[:35]:
-        t = p.text.strip()
-        if not t: continue
-        if "Nama :" in t or "Nama:" in t:
-            meta["student_name"] = t.split(":", 1)[1].strip()
-        elif "NIM" in t:
-            m_nim = re.search(r'\d{8,14}', t)
-            if m_nim:
-                meta["student_nim"] = m_nim.group(0)
-        elif "PROGRAM STUDI" in t.upper():
-            meta["prodi"] = t
-        elif "FAKULTAS" in t.upper():
-            meta["fakultas"] = t
-        elif "UNIVERSITAS" in t.upper() or "UNIVERSITY" in t.upper():
+    # Helper scanner for cover text lines
+    def process_cover_line(t):
+        if not t:
+            return
+        # Student Name
+        if re.search(r'^(nama|nama\s+lengkap|nama\s+mahasiswa)\s*:', t, re.IGNORECASE):
+            meta["student_name"] = re.split(r':', t, 1)[1].strip()
+        # Student ID (NIM, NPM, NRP, etc.)
+        m_id = re.search(r'\b(NIM|NPM|NRP|NISN)\b\s*[:\)]*\s*(\d{6,16})', t, re.IGNORECASE)
+        if m_id:
+            meta["id_type"] = m_id.group(1).upper()
+            meta["student_nim"] = m_id.group(2)
+        elif "NIM" in t or "NPM" in t or "NRP" in t:
+            m_dig = re.search(r'\d{8,14}', t)
+            if m_dig:
+                meta["student_nim"] = m_dig.group(0)
+                if "NPM" in t.upper():
+                    meta["id_type"] = "NPM"
+                elif "NRP" in t.upper():
+                    meta["id_type"] = "NRP"
+                else:
+                    meta["id_type"] = "NIM"
+        # Institution / Campus
+        if re.search(r'\b(UNIVERSITAS|UNIVERSITY|INSTITUT|INSTITUTE|POLITEKNIK|POLYTECHNIC|SEKOLAH\s+TINGGI|AKADEMI|COLLEGE)\b', t, re.IGNORECASE):
             meta["kampus"] = t
+        elif re.search(r'\b(FAKULTAS|FACULTY|SEKOLAH\s+PASCASARJANA|STEI|FMIPA|FTI|FTSL|FTMD|SBM|SITH|FSRD)\b', t, re.IGNORECASE):
+            meta["fakultas"] = t
+        elif re.search(r'\b(PROGRAM\s+STUDI|PRODI|JURUSAN|DEPARTEMEN|DEPARTMENT)\b', t, re.IGNORECASE):
+            meta["prodi"] = t
         elif re.match(r'^(202[4-9])$', t):
             meta["tahun"] = t
 
-    # Check for embedded images (logo)
+    # 1. Scan paragraphs (up to 35 paragraphs of cover)
+    for p in doc.paragraphs[:35]:
+        process_cover_line(p.text.strip())
+
+    # 2. Scan cover tables if any (many universities put Name/NIM in table cells)
+    for table in doc.tables[:3]:
+        for row in table.rows:
+            row_texts = [c.text.strip() for c in row.cells if c.text.strip()]
+            full_row = " ".join(row_texts)
+            if re.search(r'\b(nama|nama\s+lengkap|nama\s+mahasiswa)\b', full_row, re.IGNORECASE) and not re.search(r'\b(asisten|dosen)\b', full_row, re.IGNORECASE):
+                if len(row_texts) >= 2:
+                    val = row_texts[-1].lstrip(':').strip()
+                    if val and val.lower() not in ['nama', 'name']:
+                        meta["student_name"] = val
+            m_id = re.search(r'\b(NIM|NPM|NRP|NISN)\b\s*[:\)]*\s*(\d{6,16})', full_row, re.IGNORECASE)
+            if m_id:
+                meta["id_type"] = m_id.group(1).upper()
+                meta["student_nim"] = m_id.group(2)
+            elif any(k in full_row.upper() for k in ["NIM", "NPM", "NRP"]):
+                m_dig = re.search(r'\d{6,16}', full_row)
+                if m_dig:
+                    meta["student_nim"] = m_dig.group(0)
+                    if "NPM" in full_row.upper():
+                        meta["id_type"] = "NPM"
+                    elif "NRP" in full_row.upper():
+                        meta["id_type"] = "NRP"
+                    else:
+                        meta["id_type"] = "NIM"
+            for cell in row.cells:
+                for cp in cell.paragraphs:
+                    process_cover_line(cp.text.strip())
+
+    # Check for embedded images (logo) in body and header
+    logo_count = 0
     for rel in doc.part.related_parts.values():
         if "image" in rel.content_type:
-            meta["has_logo"] = True
-            break
+            logo_count += 1
+    
+    meta["logo_count"] = logo_count
+    meta["has_logo"] = logo_count > 0
+    meta["has_multiple_logos"] = logo_count >= 2
 
     # Fallback to filename hints if fields are still empty
     fname = os.path.basename(template_path)

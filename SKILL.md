@@ -56,9 +56,16 @@ AI Agent menganalisis berkas-berkas yang ada secara mandiri tanpa merepotkan pen
 4. **Deteksi Bahasa Pemrograman & Pilihan IDE**:
    - Jika ada kodingan di `Code/`, periksa ekstensi file (`.cpp` -> C++/Code::Blocks, `.java` -> Java/NetBeans, `.sql` -> SQL/DBeaver, `.py` -> Python/VS Code).
    - Jika folder `Code/` masih kosong, periksa kata kunci di modul materi (misal: `#include <iostream>`, `struct`, `cin` -> C++/Code::Blocks).
-5. **Deteksi Ketersediaan Kode**:
+5. **Deteksi Institusi, Kampus & Identitas (Agnostik Multi-Kampus)**:
+   - **Institusi**: Mendeteksi nama universitas, institut, politeknik, sekolah tinggi, atau akademi mana pun (Telkom, UI, ITB, UGM, ITS, Undip, Brawijaya, Polban, PENS, dll.).
+   - **Identitas**: Fleksibel mendeteksi format nomor induk mahasiswa (`NIM`, `NPM`, `NRP`, `NISN`) baik dalam paragraf bertab maupun di dalam tabel identitas cover.
+   - **Fakultas & Prodi**: Mengekstrak nama fakultas/sekolah dan program studi/jurusan/departemen langsung dari dokumen referensi tanpa memaksakan nilai default.
+   - **Preservasi & Ekstraksi Logo**:
+     - Jika template berformat `.docx`: Seluruh logo dan gambar cover otomatis dipertahankan pada posisi aslinya.
+     - Jika template berformat `.pdf`: Gambar/logo cover diekstrak otomatis via `extract_cover_images_from_pdf` dan disematkan kembali ke cover baru.
+6. **Deteksi Ketersediaan Kode**:
    - Jika kodingan belum tersedia di `Code/`, Agent secara mandiri memahami bahwa kodingan perlu dibuatkan di folder `Code/`, diuji coba jalannya, lalu diambil tangkapan layar outputnya.
-6. **Saran Nama File Output Otomatis**:
+7. **Saran Nama File Output Otomatis**:
    - Menyesuaikan format kampus dari template lama, misal `STRUKTUR-DATA_MOD-2_...` diubah otomatis menjadi `STRUKTUR-DATA_MOD-3_109092500017_SatriaBaktiWijaya.docx` (dan `.pdf`).
 
 **Komunikasi Proaktif & Ringkas kepada Pengguna:**
@@ -72,7 +79,7 @@ Sampaikan temuan dalam 1–2 kalimat santai:
    - Ekstrak: Judul Pertemuan/Modul, Tujuan Praktikum, Tool yang digunakan, Dasar Teori, dan daftar tugas (Guided, Unguided, Latihan, Tugas Praktikum).
 2. **Template Laprak Lama (`Laprak/*.docx` / `*.pdf`)**:
    - Ekstrak "DNA" laporan:
-     - **Cover**: Format judul, logo kampus, format nama mahasiswa, NIM, asisten praktikum, prodi, fakultas, institusi, dan tahun.
+     - **Cover**: Format judul, logo kampus (posisi tengah/kiri, 1 atau 2 logo), format nama mahasiswa, NIM/NPM/NRP, asisten praktikum, prodi/jurusan, fakultas, institusi, dan tahun.
      - **Tipografi & Spasi**: Font (Times New Roman / Arial / Calibri), margin (4-4-3-3 atau 1 inci), spasi 1.15.
      - **Sistem Penomoran**: Romawi (I. TUJUAN, II. TOOL, III. DASAR TEORI, IV. GUIDED) atau huruf/angka.
 3. **Kode Program (`Code/`)**:

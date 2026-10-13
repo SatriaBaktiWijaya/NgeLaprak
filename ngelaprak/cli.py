@@ -16,6 +16,12 @@ def format_context_summary(ctx):
     out.append(f"  * Modul Target  : {ctx.get('target_module_title')}")
     if ctx.get('student_name') or ctx.get('student_nim'):
         out.append(f"  * Mahasiswa     : {ctx.get('student_name')} ({ctx.get('student_nim')})")
+    if ctx.get('kampus'):
+        out.append(f"  * Kampus/Univ   : {ctx.get('kampus')}")
+    if ctx.get('prodi') or ctx.get('fakultas'):
+        prodi_txt = ctx.get('prodi', '')
+        fak_txt = f" ({ctx.get('fakultas')})" if ctx.get('fakultas') else ""
+        out.append(f"  * Prodi/Fakultas: {prodi_txt}{fak_txt}")
     if ctx.get('asisten'):
         out.append(f"  * Asisten Lab   : {', '.join(ctx.get('asisten')[:2])}")
     out.append(f"  * Bahasa / IDE  : {ctx.get('language')} -> {ctx.get('recommended_ide')}")
