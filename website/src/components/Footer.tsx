@@ -19,43 +19,43 @@ export const Footer: React.FC = () => {
           {/* Logo & Info */}
           <div className="space-y-3 max-w-sm">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                <Sparkles className="w-4 h-4" />
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 border border-indigo-400/40 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
+                <Sparkles className="w-3.5 h-3.5" />
               </div>
               <span className="font-bold text-white text-base font-sans">
                 Nge<span className="text-indigo-400">Laprak</span>
               </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 tabular-nums">
                 v1.2 Open Source
               </span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Solusi otomasi pembuatan Laporan Praktikum (.docx & .pdf) lengkap dengan screenshot IDE autentik untuk mahasiswa teknik informatika.
+            <p className="text-xs text-slate-400 leading-relaxed [text-wrap:pretty]">
+              Solusi otomasi pembuatan Laporan Praktikum (.docx & .pdf) lengkap dengan screenshot IDE autentik untuk mahasiswa sains komputer dan teknik informatika.
             </p>
           </div>
 
           {/* Quick links */}
           <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-300">
-            <a href="#pipeline" className="hover:text-indigo-400 transition-colors">
+            <a href="#pipeline" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Alur 3-File
             </a>
-            <a href="#gallery" className="hover:text-indigo-400 transition-colors">
+            <a href="#gallery" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Galeri IDE
             </a>
-            <a href="#compare" className="hover:text-indigo-400 transition-colors">
+            <a href="#compare" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Before/After
             </a>
-            <a href="#features" className="hover:text-indigo-400 transition-colors">
+            <a href="#features" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Fitur
             </a>
-            <a href="#samples" className="hover:text-indigo-400 transition-colors">
+            <a href="#samples" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Hasil Dokumen
             </a>
             <a
               href="https://github.com/khilma-ainunnajah/NgeLaprak"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white"
             >
               <GithubIcon className="w-3.5 h-3.5" />
               <span>GitHub Repo</span>
@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
           {/* Back to top */}
           <button
             onClick={scrollToTop}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors self-end md:self-auto"
+            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-[0.98] self-end md:self-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             title="Kembali ke atas"
           >
             <ArrowUp className="w-4 h-4" />
@@ -74,13 +74,11 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-1">
-            <span>Dibuat dengan</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline" />
-            <span>untuk mahasiswa informatika & sains komputer. MIT License.</span>
+          <div className="flex items-center gap-1.5">
+            <span>Dibuat dengan dedikasi untuk mahasiswa informatika & sistem komputer. MIT License.</span>
           </div>
 
-          <div className="flex items-center gap-3 font-mono text-[11px]">
+          <div className="flex items-center gap-3 font-mono text-[11px] text-slate-500">
             <span>NetBeans</span>
             <span>•</span>
             <span>Code::Blocks</span>

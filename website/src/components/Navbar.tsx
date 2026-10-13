@@ -23,65 +23,65 @@ export const Navbar: React.FC = () => {
     <>
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-4xl transition-all duration-300">
         <div
-          className={`flex items-center justify-between px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-300 ${
+          className={`flex items-center justify-between px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
             scrolled
-              ? 'bg-[#0A0D18]/95 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80'
-              : 'bg-[#0D1020]/90 backdrop-blur-xl border-white/10 shadow-xl shadow-black/50'
+              ? 'bg-[#090A0F]/90 backdrop-blur-2xl border-white/12 shadow-2xl shadow-black/80'
+              : 'bg-[#0D0E17]/80 backdrop-blur-xl border-white/8 shadow-xl shadow-black/50'
           }`}
         >
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4 text-white" />
+          <a href="#" className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 border border-indigo-400/40 flex items-center justify-center shadow-md shadow-indigo-600/30 group-hover:scale-105 active:scale-95 transition-all">
+              <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <span className="font-bold text-sm sm:text-base tracking-tight text-white font-sans">
                 Nge<span className="text-indigo-400">Laprak</span>
               </span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 tabular-nums">
                 v1.2
               </span>
             </div>
           </a>
 
           {/* Desktop Links */}
-          <nav className="hidden md:flex items-center gap-5 text-xs text-slate-300 font-medium">
-            <a href="#pipeline" className="hover:text-white transition-colors">
+          <nav className="hidden md:flex items-center gap-6 text-xs text-slate-300 font-medium">
+            <a href="#pipeline" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Alur 3-File
             </a>
-            <a href="#gallery" className="hover:text-white transition-colors">
+            <a href="#gallery" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Galeri IDE
             </a>
-            <a href="#compare" className="hover:text-white transition-colors">
+            <a href="#compare" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Before/After
             </a>
-            <a href="#features" className="hover:text-white transition-colors">
+            <a href="#features" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Fitur
             </a>
-            <a href="#samples" className="hover:text-white transition-colors">
+            <a href="#samples" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Hasil Dokumen
             </a>
-            <a href="#install" className="hover:text-white transition-colors">
+            <a href="#install" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Instalasi
             </a>
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2.5">
             <a
               href="https://github.com/khilma-ainunnajah/NgeLaprak"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
               <GithubIcon className="w-3.5 h-3.5" />
               <span>GitHub</span>
             </a>
             <a
               href="#install"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 shadow-md shadow-indigo-500/25 transition-all"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-              <Terminal className="w-3 h-3" />
+              <Terminal className="w-3 h-3 text-indigo-200" />
               <span>Install Skill</span>
             </a>
           </div>
@@ -89,7 +89,7 @@ export const Navbar: React.FC = () => {
           {/* Mobile hamburger button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 text-slate-300 hover:text-white focus:outline-none"
+            className="md:hidden p-1.5 text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -165,9 +165,9 @@ export const Navbar: React.FC = () => {
             <a
               href="#install"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-bold shadow-lg"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 active:scale-[0.98] transition-all"
             >
-              <Terminal className="w-3.5 h-3.5" />
+              <Terminal className="w-3.5 h-3.5 text-indigo-200" />
               <span>npx skills add ngelaprak</span>
             </a>
           </nav>
