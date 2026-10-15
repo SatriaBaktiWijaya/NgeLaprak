@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Sparkles, Terminal, Menu, X, BookOpen } from 'lucide-react'
+import { Sparkles, Terminal, Menu, X, BookOpen, Coffee } from 'lucide-react'
+import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -13,75 +14,101 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
+      setScrolled(window.scrollY > 30)
     }
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   return (
     <>
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-4xl transition-all duration-300">
+      <header
+        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out ${
+          scrolled
+            ? 'top-2 sm:top-3 w-[90%] max-w-4xl'
+            : 'top-4 sm:top-5 w-[94%] max-w-5xl'
+        }`}
+      >
         <div
-          className={`flex items-center justify-between px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-300 ${
+          className={`flex items-center justify-between rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
             scrolled
-              ? 'bg-[#0A0D18]/95 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/80'
-              : 'bg-[#0D1020]/90 backdrop-blur-xl border-white/10 shadow-xl shadow-black/50'
+              ? 'bg-[#090A0F]/90 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/90 px-3.5 sm:px-4 py-1.5 sm:py-2'
+              : 'bg-[#0D0E17]/80 backdrop-blur-xl border-white/8 shadow-xl shadow-black/50 px-4 sm:px-5 py-2.5 sm:py-3'
           }`}
         >
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2.5 group">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm sm:text-base tracking-tight text-white font-sans">
+          <a href="#" className="flex items-center gap-2 sm:gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+            <NgeLaprakLogo
+              size={scrolled ? 24 : 28}
+              className="group-hover:scale-105 active:scale-95 transition-all duration-300 shadow-md shadow-indigo-600/30 rounded-xl"
+            />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className={`font-bold tracking-tight text-white font-sans transition-all duration-300 ${
+                scrolled ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+              }`}>
                 Nge<span className="text-indigo-400">Laprak</span>
               </span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              <span className={`font-mono font-semibold rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 tabular-nums transition-all duration-300 ${
+                scrolled ? 'text-[9px] px-1.5 py-0' : 'text-[10px] px-1.5 py-0.5'
+              }`}>
                 v1.2
               </span>
             </div>
           </a>
 
           {/* Desktop Links */}
-          <nav className="hidden md:flex items-center gap-5 text-xs text-slate-300 font-medium">
-            <a href="#pipeline" className="hover:text-white transition-colors">
-              Alur 3-File
+          <nav className={`hidden lg:flex items-center font-medium transition-all duration-300 ${
+            scrolled ? 'gap-4 text-[11px] text-slate-300' : 'gap-5 text-xs text-slate-300'
+          }`}>
+            <a href="#tutorial" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
+              Tutorial
             </a>
-            <a href="#gallery" className="hover:text-white transition-colors">
+            <a href="#gallery" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Galeri IDE
             </a>
-            <a href="#compare" className="hover:text-white transition-colors">
+            <a href="#compare" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Before/After
             </a>
-            <a href="#features" className="hover:text-white transition-colors">
+            <a href="#features" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Fitur
             </a>
-            <a href="#samples" className="hover:text-white transition-colors">
-              Hasil Dokumen
-            </a>
-            <a href="#install" className="hover:text-white transition-colors">
+            <a href="#install" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Instalasi
             </a>
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
             <a
-              href="https://github.com/khilma-ainunnajah/NgeLaprak"
+              href="https://saweria.co/satriabaktiwijaya"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 transition-all"
+              className={`flex items-center gap-1.5 rounded-full font-semibold text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-100 border border-amber-500/30 hover:border-amber-400/50 shadow-sm shadow-amber-950/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 group ${
+                scrolled ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
+              }`}
+              title="Traktir Kopi di Saweria"
             >
-              <GithubIcon className="w-3.5 h-3.5" />
+              <Coffee className={`text-amber-400 group-hover:scale-110 transition-transform ${scrolled ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
+              <span>Traktir Kopi</span>
+            </a>
+            <a
+              href="https://github.com/SatriaBaktiWijaya/NgeLaprak"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1.5 rounded-full font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                scrolled ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
+              }`}
+            >
+              <GithubIcon className={scrolled ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
               <span>GitHub</span>
             </a>
             <a
               href="#install"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 shadow-md shadow-indigo-500/25 transition-all"
+              className={`flex items-center gap-1.5 rounded-full font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                scrolled ? 'px-3 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs'
+              }`}
             >
-              <Terminal className="w-3 h-3" />
+              <Terminal className={scrolled ? 'w-2.5 h-2.5 text-indigo-200' : 'w-3 h-3 text-indigo-200'} />
               <span>Install Skill</span>
             </a>
           </div>
@@ -89,7 +116,7 @@ export const Navbar: React.FC = () => {
           {/* Mobile hamburger button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 text-slate-300 hover:text-white focus:outline-none"
+            className="md:hidden p-1.5 text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -109,11 +136,11 @@ export const Navbar: React.FC = () => {
 
           <nav className="flex flex-col items-center gap-6 text-base font-semibold text-slate-200">
             <a
-              href="#pipeline"
+              href="#tutorial"
               onClick={() => setMobileMenuOpen(false)}
               className="hover:text-indigo-400 transition-colors"
             >
-              Alur 3-File
+              Tutorial
             </a>
             <a
               href="#gallery"
@@ -137,13 +164,6 @@ export const Navbar: React.FC = () => {
               Fitur Unggulan
             </a>
             <a
-              href="#samples"
-              onClick={() => setMobileMenuOpen(false)}
-              className="hover:text-indigo-400 transition-colors"
-            >
-              Pratinjau Hasil
-            </a>
-            <a
               href="#install"
               onClick={() => setMobileMenuOpen(false)}
               className="hover:text-indigo-400 transition-colors"
@@ -154,7 +174,17 @@ export const Navbar: React.FC = () => {
             <div className="w-32 h-px bg-white/10 my-2" />
 
             <a
-              href="https://github.com/khilma-ainunnajah/NgeLaprak"
+              href="https://saweria.co/satriabaktiwijaya"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-200 text-xs font-bold shadow-md shadow-amber-950/30"
+            >
+              <Coffee className="w-4 h-4 text-amber-400" />
+              <span>Traktir Kopi di Saweria</span>
+            </a>
+            <a
+              href="https://github.com/SatriaBaktiWijaya/NgeLaprak"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-5 py-2 rounded-full bg-white/10 text-white text-xs"
@@ -165,10 +195,10 @@ export const Navbar: React.FC = () => {
             <a
               href="#install"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-bold shadow-lg"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 active:scale-[0.98] transition-all"
             >
-              <Terminal className="w-3.5 h-3.5" />
-              <span>npx skills add ngelaprak</span>
+              <Terminal className="w-3.5 h-3.5 text-indigo-200" />
+              <span>npx skills add SatriaBaktiWijaya/NgeLaprak</span>
             </a>
           </nav>
         </div>

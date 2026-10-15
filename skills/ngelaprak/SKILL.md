@@ -143,7 +143,8 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
      - **C / C++ / Code::Blocks (`codeblocks_renderer.py`)**:
        - Font Consolas monospace khas Code::Blocks, gutter nomor baris abu-abu, keywords biru tua, include hijau, strings merah.
      - **Python / Web / VS Code (`vscode_renderer.py`)**:
-       - Tema clean VS Code Dark+ atau Light+.
+       - **DEFAULT: Tema Gelap (Dark+ / Dark Modern)** dengan editor background `#1e1e1e`, tab bar aktif dengan ikon bahasa dan tombol close, breadcrumb navigasi, gutter abu-abu `#858585`, serta syntax highlighting otentik (keywords biru `#569cd6`, control flow magenta `#c586c0`, string oranye `#ce9178`, angka `#b5cea8`, fungsi `#dcdcaa`, komentar `#6a9955`).
+       - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
      - **Basis Data / SQL (`database_renderer.py`)**:
        - Tampilan editor query DBeaver / Navicat lengkap dengan syntax highlight dan tabel data grid baris & kolom hasil eksekusi.
      - **Terminal / Console & Simulasi CLI Interaktif (`terminal_renderer.py` & `cli_simulator.py`)**:

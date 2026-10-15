@@ -169,7 +169,7 @@ Typography dibangun menggunakan jenis huruf **Satoshi** (modern geometric grotes
 - Text Slate: `#94A3B8`
 
 ### Component Prompts
-- **Hero Section**: *"A dark mode hero section for NgeLaprak developer tool, large Satoshi display headline 'Ubah 3 File Jadi Laporan Praktikum Sempurna', single-line glowing terminal with 'npx skills add ngelaprak' copy button, surrounded by deep purple ambient glow and subtle dithering mesh texture."*
+- **Hero Section**: *"A dark mode hero section for NgeLaprak developer tool, large Satoshi display headline 'Ubah 3 File Jadi Laporan Praktikum Sempurna', single-line glowing terminal with 'npx skills add SatriaBaktiWijaya/NgeLaprak' copy button, surrounded by deep purple ambient glow and subtle dithering mesh texture."*
 - **Pipeline Section**: *"An interactive 3-step pipeline graphic showing three input files (code, module, template) converging into an illuminated AI engine core and splitting into two finished Word and PDF document mockups."*
 - **IDE Showcase**: *"A bento grid of 4 IDE application frames showcasing Java in Apache NetBeans, C++ in Code::Blocks, Python in VS Code, and SQL in DBeaver with realistic title bars and syntax highlighted code."*
 

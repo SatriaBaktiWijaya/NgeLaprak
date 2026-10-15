@@ -1,5 +1,6 @@
 import React from 'react'
-import { Sparkles, Heart, Terminal, FileCode, ArrowUp } from 'lucide-react'
+import { Sparkles, ArrowUp, Coffee } from 'lucide-react'
+import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -13,59 +14,55 @@ export const Footer: React.FC = () => {
   }
 
   return (
-    <footer className="border-t border-white/5 bg-[#07080C] py-14 text-slate-400 text-xs sm:text-sm relative">
+    <footer className="border-t border-white/5 bg-[#07080C] py-12 text-slate-400 text-xs sm:text-sm relative">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 pb-10 border-b border-white/5">
-          {/* Logo & Info */}
-          <div className="space-y-3 max-w-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <span className="font-bold text-white text-base font-sans">
-                Nge<span className="text-indigo-400">Laprak</span>
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                v1.2 Open Source
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Solusi otomasi pembuatan Laporan Praktikum (.docx & .pdf) lengkap dengan screenshot IDE autentik untuk mahasiswa teknik informatika.
-            </p>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-white/5">
+          {/* Logo */}
+          <div className="flex items-center gap-2.5">
+            <NgeLaprakLogo size={28} className="rounded-xl shadow-md shadow-indigo-600/30" />
+            <span className="font-bold text-white text-base font-sans">
+              Nge<span className="text-indigo-400">Laprak</span>
+            </span>
           </div>
 
           {/* Quick links */}
-          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-300">
-            <a href="#pipeline" className="hover:text-indigo-400 transition-colors">
-              Alur 3-File
+          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-400">
+            <a href="#tutorial" className="hover:text-white transition-colors">
+              Tutorial
             </a>
-            <a href="#gallery" className="hover:text-indigo-400 transition-colors">
+            <a href="#gallery" className="hover:text-white transition-colors">
               Galeri IDE
             </a>
-            <a href="#compare" className="hover:text-indigo-400 transition-colors">
+            <a href="#compare" className="hover:text-white transition-colors">
               Before/After
             </a>
-            <a href="#features" className="hover:text-indigo-400 transition-colors">
+            <a href="#features" className="hover:text-white transition-colors">
               Fitur
             </a>
-            <a href="#samples" className="hover:text-indigo-400 transition-colors">
-              Hasil Dokumen
+            <a
+              href="https://saweria.co/satriabaktiwijaya"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-amber-400/90 hover:text-amber-300 transition-colors"
+            >
+              <Coffee className="w-3.5 h-3.5 text-amber-400" />
+              <span>Saweria</span>
             </a>
             <a
-              href="https://github.com/khilma-ainunnajah/NgeLaprak"
+              href="https://github.com/SatriaBaktiWijaya/NgeLaprak"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 hover:text-white transition-colors"
             >
               <GithubIcon className="w-3.5 h-3.5" />
-              <span>GitHub Repo</span>
+              <span>GitHub</span>
             </a>
           </div>
 
           {/* Back to top */}
           <button
             onClick={scrollToTop}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors self-end md:self-auto"
+            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all active:scale-[0.98] cursor-pointer"
             title="Kembali ke atas"
           >
             <ArrowUp className="w-4 h-4" />
@@ -73,22 +70,9 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <div className="flex items-center gap-1">
-            <span>Dibuat dengan</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline" />
-            <span>untuk mahasiswa informatika & sains komputer. MIT License.</span>
-          </div>
-
-          <div className="flex items-center gap-3 font-mono text-[11px]">
-            <span>NetBeans</span>
-            <span>•</span>
-            <span>Code::Blocks</span>
-            <span>•</span>
-            <span>VS Code</span>
-            <span>•</span>
-            <span>DBeaver</span>
-          </div>
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <div>Dibuat untuk mahasiswa sains komputer &amp; informatika. MIT License.</div>
+          <div className="font-mono text-[11px] text-slate-600">NetBeans • Code::Blocks • VS Code • DBeaver</div>
         </div>
       </div>
     </footer>

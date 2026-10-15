@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64" fill="none" role="img" aria-label="NgeLaprak Full Horizontal Logo">
+  <defs>
+    <!-- Background Gradient for Icon -->
+    <linearGradient id="nlHIconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#4f46e5" />
+      <stop offset="100%" stopColor="#1e1b4b" />
+    </linearGradient>
+
+    <!-- Border Glow Gradient -->
+    <linearGradient id="nlHBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#818cf8" />
+      <stop offset="100%" stopColor="#312e81" />
+    </linearGradient>
+
+    <!-- Wordmark Laprak Gradient -->
+    <linearGradient id="nlHWordmarkGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#818cf8" />
+      <stop offset="100%" stopColor="#38bdf8" />
+    </linearGradient>
+
+    <!-- Beam Gradient -->
+    <linearGradient id="nlHBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#38bdf8" />
+      <stop offset="100%" stopColor="#6366f1" />
+    </linearGradient>
+  </defs>
+
+  <!-- ICON CONTAINER (Left) -->
+  <g transform="translate(6, 6)">
+    <!-- Squircle Frame -->
+    <rect x="0" y="0" width="52" height="52" rx="14" fill="url(#nlHIconBg)" stroke="url(#nlHBorder)" stroke-width="1.5" />
+    
+    <!-- Margin Corner Marks -->
+    <path d="M6 12 L6 6 L12 6" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" opacity="0.8" />
+    <path d="M46 40 L46 46 L40 46" stroke="#38bdf8" stroke-width="1.2" stroke-linecap="round" opacity="0.8" />
+
+    <!-- Letter N Glyph -->
+    <rect x="11" y="12" width="7" height="28" rx="2.5" fill="#ffffff" />
+    <rect x="34" y="12" width="7" height="28" rx="2.5" fill="#ffffff" />
+    <path d="M13 13 L36 37 L39 37 L16 13 Z" fill="url(#nlHBeam)" />
+    
+    <!-- Code Chevron in Center -->
+    <path d="M23 23 L27 27 L23 31" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+
+    <!-- Top Right Sparkle -->
+    <path d="M43 5 Q43 9 47 9 Q43 9 43 13 Q43 9 39 9 Q43 9 43 5 Z" fill="#38bdf8" />
+  </g>
+
+  <!-- WORDMARK & SUBTITLE (Right) -->
+  <g transform="translate(72, 38)">
+    <!-- Brand Title -->
+    <text font-family="system-ui, -apple-system, 'Inter', sans-serif" font-size="26" font-weight="800" letter-spacing="-0.03em">
+      <tspan fill="#ffffff">Nge</tspan>
+      <tspan fill="url(#nlHWordmarkGrad)">Laprak</tspan>
+    </text>
+
+    <!-- Subtitle Pill / Tagline -->
+    <text y="14" font-family="'SF Mono', Menlo, Consolas, monospace" font-size="8.5" font-weight="600" fill="#94a3b8" letter-spacing="0.12em">
+      AI LAB REPORT COMPILER
+    </text>
+  </g>
+</svg>

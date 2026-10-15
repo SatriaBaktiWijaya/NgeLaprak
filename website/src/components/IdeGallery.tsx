@@ -1,39 +1,33 @@
 import React, { useState } from 'react'
-import { Monitor, Code, Maximize2, ExternalLink, Sparkles, FolderTree, Check } from 'lucide-react'
+import { Monitor, Code, Maximize2, Check, Copy } from 'lucide-react'
+import { ImageDithering } from '@paper-design/shaders-react'
 
 interface IdeProfile {
   id: string
   name: string
-  course: string
   lang: string
   filename: string
-  badge: string
-  color: string
-  accentColor: string
   screenshotPath: string
+  colorFront: string
+  colorHighlight: string
   codeSnippet: string
-  outputSample: string
-  structurePath: string
 }
 
 export const IdeGallery: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('netbeans')
   const [viewMode, setViewMode] = useState<'screenshot' | 'code'>('screenshot')
   const [zoomModal, setZoomModal] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   const ideList: IdeProfile[] = [
     {
       id: 'netbeans',
       name: 'Apache NetBeans',
-      course: 'PBO & Rekayasa Perangkat Lunak',
       lang: 'Java / Swing',
       filename: 'KoneksiDB.java',
-      badge: 'Struktur Maven Standar',
-      color: 'from-orange-500/20 to-red-500/20 border-orange-500/30',
-      accentColor: '#F97316',
       screenshotPath: '/samples/adpl/screenshots/1_KoneksiDB_NetBeans.png',
-      structurePath: 'src/main/java/com/praktikum/adpl/',
-      outputSample: 'BUILD SUCCESS (total time: 1.284s)',
+      colorFront: '#4f46e5',
+      colorHighlight: '#818cf8',
       codeSnippet: `package com.praktikum.adpl;
 
 import java.sql.Connection;
@@ -63,15 +57,11 @@ public class KoneksiDB {
     {
       id: 'codeblocks',
       name: 'Code::Blocks',
-      course: 'Struktur Data & Algoritma',
       lang: 'C / C++',
       filename: 'Stack.h',
-      badge: 'Modular Include & Source',
-      color: 'from-blue-500/20 to-cyan-500/20 border-blue-500/30',
-      accentColor: '#3B82F6',
       screenshotPath: '/samples/strukdat/screenshots/1_Stack_h_CodeBlocks.png',
-      structurePath: 'include/Stack.h & src/main.cpp',
-      outputSample: 'Process returned 0 (0x0) execution time: 0.012 s',
+      colorFront: '#3b82f6',
+      colorHighlight: '#93c5fd',
       codeSnippet: `#ifndef STACK_H
 #define STACK_H
 
@@ -93,16 +83,12 @@ void displayStack(Stack *s);
     },
     {
       id: 'vscode',
-      name: 'Visual Studio Code',
-      course: 'Kecerdasan Buatan & Web',
+      name: 'VS Code',
       lang: 'Python / JS',
-      filename: 'dijkstra_graph.py',
-      badge: 'Modern Dark One',
-      color: 'from-sky-500/20 to-indigo-500/20 border-sky-500/30',
-      accentColor: '#0EA5E9',
+      filename: 'dijkstra.py',
       screenshotPath: '/samples/strukdat/screenshots/2_main_cpp_CodeBlocks.png',
-      structurePath: 'scripts/graph_analysis.py',
-      outputSample: 'Shortest path found: [A -> B -> D -> E] (cost: 14)',
+      colorFront: '#6366f1',
+      colorHighlight: '#c7d2fe',
       codeSnippet: `import heapq
 
 class Graph:
@@ -130,16 +116,12 @@ class Graph:
     },
     {
       id: 'dbeaver',
-      name: 'DBeaver / Terminal',
-      course: 'Sistem Basis Data',
+      name: 'Terminal / SQL',
       lang: 'SQL / Shell',
-      filename: 'query_analisis.sql',
-      badge: 'Console Execution Frame',
-      color: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/30',
-      accentColor: '#10B981',
+      filename: 'query.sql',
       screenshotPath: '/samples/adpl/screenshots/4_MySQL_Terminal.png',
-      structurePath: 'database/schema_and_queries.sql',
-      outputSample: 'Query OK, 5 rows affected (0.00 sec)',
+      colorFront: '#059669',
+      colorHighlight: '#34d399',
       codeSnippet: `-- Laporan Modul Basis Data: Relasi & Indexing
 SELECT 
     p.kode_produk,
@@ -158,145 +140,153 @@ LIMIT 5;`
 
   const current = ideList.find((i) => i.id === activeTab) || ideList[0]
 
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(current.codeSnippet)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
-    <section id="gallery" className="py-24 relative overflow-hidden bg-[#08090E]">
+    <section id="gallery" className="py-20 md:py-28 relative overflow-hidden bg-[#090A0F]">
+      {/* Dynamic Image Dithering Background linked to the active IDE screenshot */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
+        <ImageDithering
+          key={current.id}
+          width="100%"
+          height="100%"
+          image={current.screenshotPath}
+          colorBack="#090a0f"
+          colorFront={current.colorFront}
+          colorHighlight={current.colorHighlight}
+          originalColors={false}
+          inverted={false}
+          type="8x8"
+          size={3}
+          colorSteps={2}
+          fit="cover"
+          className="w-full h-full opacity-25 md:opacity-35 transition-opacity duration-700"
+        />
+        {/* Soft radial vignette & vertical gradient overlay to guarantee text legibility & smooth section blending */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(9,10,15,0.4)_0%,transparent_55%,#090A0F_88%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#090A0F] via-transparent to-[#090A0F]" />
+      </div>
+
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono uppercase tracking-wider mb-3">
               <Monitor className="w-3.5 h-3.5" />
-              <span>Authentic IDE Rendering Engine</span>
+              <span>Galeri IDE</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight font-sans">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-[-0.035em] font-sans [text-wrap:balance]">
               Screenshot IDE Asli,{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-pink-400">
-                Bukan Teks Mentah
-              </span>
+              <span className="text-indigo-400">Tanpa Watermark</span>
             </h2>
-            <p className="text-slate-400 text-sm sm:text-base mt-2 max-w-xl">
-              NgeLaprak menghasilkan visual IDE nyata berstandar sistem operasi tanpa watermark aneh, langsung disematkan rapi ke bab pembahasan.
+            <p className="text-slate-400 text-sm sm:text-base mt-2 max-w-xl [text-wrap:pretty]">
+              Visual tangkapan layar IDE berstandar sistem operasi yang otomatis disematkan rapi ke bab pembahasan.
             </p>
           </div>
 
           {/* Screenshot / Code View Mode Toggle */}
-          <div className="flex items-center bg-[#131626] p-1 rounded-xl border border-white/10 self-start md:self-auto">
+          <div className="flex items-center bg-[#0D0F18]/90 backdrop-blur-md p-1 rounded-xl border border-white/10 self-start md:self-auto shadow-inner">
             <button
               onClick={() => setViewMode('screenshot')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] cursor-pointer ${
                 viewMode === 'screenshot'
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Monitor className="w-3.5 h-3.5" />
-              <span>Screenshot IDE</span>
+              <span>Screenshot</span>
             </button>
             <button
               onClick={() => setViewMode('code')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] cursor-pointer ${
                 viewMode === 'code'
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
               <Code className="w-3.5 h-3.5" />
-              <span>Source Code</span>
+              <span>Kode</span>
             </button>
           </div>
         </div>
 
-        {/* IDE Selector Tabs */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        {/* Minimalist IDE Selector Tabs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
           {ideList.map((ide) => {
             const isActive = activeTab === ide.id
             return (
               <button
                 key={ide.id}
                 onClick={() => setActiveTab(ide.id)}
-                className={`p-3.5 rounded-2xl border text-left transition-all duration-200 relative overflow-hidden ${
+                className={`py-3 px-4 rounded-xl border text-center transition-all duration-200 active:scale-[0.98] cursor-pointer backdrop-blur-sm ${
                   isActive
-                    ? 'bg-[#15192C] border-indigo-500/70 shadow-lg shadow-indigo-500/15'
-                    : 'bg-[#0E111E]/70 border-white/5 hover:border-white/15 hover:bg-[#131728]'
+                    ? 'bg-indigo-600/25 border-indigo-500/60 text-white shadow-lg shadow-indigo-950/40 ring-1 ring-indigo-500/30'
+                    : 'bg-[#0D0F18]/80 border-white/8 text-slate-400 hover:text-white hover:border-white/15 hover:bg-[#101320]'
                 }`}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-bold text-white text-sm">{ide.name}</span>
-                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping" />}
-                </div>
-                <div className="text-[11px] text-slate-400 truncate">{ide.lang}</div>
-                <div className="mt-2 text-[10px] font-mono text-indigo-300/80 truncate">
-                  {ide.filename}
-                </div>
+                <div className="font-bold text-xs sm:text-sm">{ide.name}</div>
               </button>
             )
           })}
         </div>
 
         {/* Active IDE Frame Showcase */}
-        <div className="rounded-2xl bg-[#121524] border border-[#232942] overflow-hidden shadow-2xl relative">
+        <div className="rounded-2xl bg-[#0D0F18]/90 backdrop-blur-md border border-white/10 overflow-hidden shadow-2xl relative">
           {/* OS Titlebar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-[#181C2E] border-b border-[#232942]">
+          <div className="flex items-center justify-between px-4 py-3 bg-[#111422]/95 border-b border-white/10">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E]" />
-              <div className="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]" />
-              <div className="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29]" />
-              <div className="ml-3 flex items-center gap-2">
-                <span className="text-xs font-mono font-medium text-slate-300">{current.filename}</span>
-                <span className="text-[10px] font-mono text-slate-500 hidden sm:inline">— {current.name}</span>
-              </div>
+              <div className="w-3 h-3 rounded-full bg-[#FF5F56] opacity-80" />
+              <div className="w-3 h-3 rounded-full bg-[#FFBD2E] opacity-80" />
+              <div className="w-3 h-3 rounded-full bg-[#27C93F] opacity-80" />
+              <span className="ml-3 text-xs font-mono font-medium text-slate-300">{current.filename}</span>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-mono text-indigo-300 hidden sm:inline-block bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-800/40">
-                {current.badge}
-              </span>
-              <button
-                onClick={() => setZoomModal(current.screenshotPath)}
-                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                title="Perbesar Screenshot"
-              >
-                <Maximize2 className="w-3.5 h-3.5" />
-              </button>
+            <div className="flex items-center gap-2">
+              {viewMode === 'code' ? (
+                <button
+                  onClick={handleCopyCode}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setZoomModal(current.screenshotPath)}
+                  className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Perbesar"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
           {/* IDE Content Area */}
-          <div className="p-4 sm:p-6 bg-[#0B0D17]">
+          <div className="p-3 sm:p-5 bg-[#07080E]/95">
             {viewMode === 'screenshot' ? (
               <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-black/40">
                 <img
                   src={current.screenshotPath}
                   alt={`${current.name} Screenshot`}
-                  className="w-full max-h-[520px] object-contain mx-auto rounded-lg transition-transform duration-300 group-hover:scale-[1.01]"
+                  className="w-full max-h-[520px] object-contain mx-auto rounded-lg transition-transform duration-300 group-hover:scale-[1.005]"
                   loading="lazy"
                   onError={(e) => {
-                    // Fallback to code mode if image not loaded
                     const target = e.target as HTMLImageElement
                     target.style.display = 'none'
                   }}
                 />
-                <div className="absolute bottom-3 right-3 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[11px] font-mono text-slate-300 flex items-center gap-1.5">
-                  <Check className="w-3 h-3 text-emerald-400" />
-                  <span>Pixel-Perfect Rendered Capture</span>
-                </div>
               </div>
             ) : (
-              <div className="rounded-xl bg-[#0E111D] border border-white/5 p-4 sm:p-5 overflow-x-auto font-mono text-xs sm:text-sm text-slate-300 leading-relaxed max-h-[500px]">
+              <div className="rounded-xl bg-[#0A0C14] border border-white/5 p-4 sm:p-5 overflow-x-auto font-mono text-xs sm:text-sm text-slate-300 leading-relaxed max-h-[500px]">
                 <pre>{current.codeSnippet}</pre>
               </div>
             )}
-
-            {/* Folder structure badge */}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400 pt-3 border-t border-white/5 font-mono">
-              <div className="flex items-center gap-2">
-                <FolderTree className="w-4 h-4 text-indigo-400" />
-                <span>Struktur: {current.structurePath}</span>
-              </div>
-              <div className="text-emerald-400">
-                Status: {current.outputSample}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -307,15 +297,12 @@ LIMIT 5;`
           onClick={() => setZoomModal(null)}
           className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 cursor-pointer animate-in fade-in duration-200"
         >
-          <div className="relative max-w-5xl w-full max-h-[90vh] bg-[#101322] rounded-2xl border border-white/15 overflow-hidden p-2 shadow-2xl">
+          <div className="relative max-w-5xl w-full max-h-[90vh] bg-[#0E101A] rounded-2xl border border-white/15 overflow-hidden p-2 shadow-2xl">
             <img
               src={zoomModal}
               alt="Zoomed Screenshot"
               className="w-full h-auto max-h-[85vh] object-contain rounded-xl"
             />
-            <div className="absolute top-4 right-4 bg-black/70 px-3 py-1 rounded-full text-xs text-white border border-white/20">
-              Klik di mana saja untuk menutup
-            </div>
           </div>
         </div>
       )}
