@@ -4,7 +4,7 @@ import { Navbar } from './components/Navbar'
 import { ShaderBackground } from './components/ShaderBackground'
 import { Hero } from './components/Hero'
 import { AgentEcosystem } from './components/AgentEcosystem'
-import { PipelineVisualizer } from './components/PipelineVisualizer'
+import { TutorSection } from './components/TutorSection'
 import { IdeGallery } from './components/IdeGallery'
 import { BeforeAfter } from './components/BeforeAfter'
 import { FeaturesBento } from './components/FeaturesBento'
@@ -37,7 +37,7 @@ export const App: React.FC = () => {
     <div ref={containerRef} className="min-h-screen bg-[#090A0F] text-[#F8FAFC] selection:bg-indigo-500/30 selection:text-white relative">
       {/* Accessibility Skip Link */}
       <a
-        href="#pipeline"
+        href="#tutorial"
         className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:font-semibold focus:rounded-full focus:shadow-2xl"
       >
         Lewati ke Konten Utama
@@ -59,7 +59,7 @@ export const App: React.FC = () => {
       <main className="relative z-10">
         <Hero />
         <AgentEcosystem />
-        <PipelineVisualizer />
+        <TutorSection />
         <IdeGallery />
         <BeforeAfter />
         <FeaturesBento />

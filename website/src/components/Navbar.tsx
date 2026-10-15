@@ -46,8 +46,8 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Links */}
           <nav className="hidden md:flex items-center gap-6 text-xs text-slate-300 font-medium">
-            <a href="#pipeline" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
-              Alur 3-File
+            <a href="#tutorial" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
+              Tutorial
             </a>
             <a href="#gallery" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Galeri IDE
@@ -109,11 +109,11 @@ export const Navbar: React.FC = () => {
 
           <nav className="flex flex-col items-center gap-6 text-base font-semibold text-slate-200">
             <a
-              href="#pipeline"
+              href="#tutorial"
               onClick={() => setMobileMenuOpen(false)}
               className="hover:text-indigo-400 transition-colors"
             >
-              Alur 3-File
+              Tutorial
             </a>
             <a
               href="#gallery"
