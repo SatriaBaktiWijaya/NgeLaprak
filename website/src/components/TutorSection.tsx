@@ -558,21 +558,11 @@ export const TutorSection: React.FC = () => {
         {/* Dedicated Copy Prompt Banner Below the 3 Cards */}
         <div className="mt-8 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-[#0D0F18] to-indigo-950/40 border border-indigo-500/25 p-5 sm:p-6 shadow-2xl relative overflow-hidden group">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5 shrink-0">
-              <div className="w-11 h-11 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
-                <Terminal className="w-5 h-5 text-indigo-400" />
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
+                <Terminal className="w-4 h-4 text-indigo-400" />
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm sm:text-base font-bold text-white">Prompt Eksekusi AI Mahasiswa</h4>
-                  <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-300">
-                    1-Klik Salin
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Tempel langsung ke chat Antigravity, Cursor, Claude Code, Copilot, atau VS Code.
-                </p>
-              </div>
+              <h4 className="text-sm sm:text-base font-bold text-white">Prompt Langsung Eksekusi</h4>
             </div>
 
             {/* Prompt Code Display & One-Click Copy Button */}

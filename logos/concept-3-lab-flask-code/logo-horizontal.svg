@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" width="280" height="64" fill="none" role="img" aria-label="NgeLaprak Concept 3 Horizontal Logo">
+  <defs>
+    <linearGradient id="c3hBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#1e1b4b" />
+      <stop offset="100%" stopColor="#090a0f" />
+    </linearGradient>
+    <linearGradient id="c3hLiquid" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#6366f1" />
+      <stop offset="100%" stopColor="#38bdf8" />
+    </linearGradient>
+    <linearGradient id="c3hTextGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#818cf8" />
+      <stop offset="100%" stopColor="#38bdf8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Left: Flask Icon -->
+  <g transform="translate(6, 6) scale(0.52)">
+    <rect x="5" y="5" width="90" height="90" rx="24" fill="url(#c3hBg)" stroke="#6366f1" stroke-width="2.5" />
+    <path d="M44 20 L56 20 M50 20 L50 36 L76 74 C78 77, 76 82, 71 82 L29 82 C24 82, 22 77, 24 74 L50 36" stroke="#a5b4fc" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M36 56 L64 56 L72 74 C73 76, 72 79, 69 79 L31 79 C28 79, 27 76, 28 74 Z" fill="url(#c3hLiquid)" />
+    <path d="M42 63 L38 67 L42 71" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M58 63 L62 67 L58 71" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+
+  <!-- Right: Wordmark -->
+  <g transform="translate(72, 38)">
+    <text font-family="system-ui, -apple-system, 'Inter', sans-serif" font-size="26" font-weight="800" letter-spacing="-0.03em">
+      <tspan fill="#ffffff">Nge</tspan>
+      <tspan fill="url(#c3hTextGrad)">Laprak</tspan>
+    </text>
+    <text y="14" font-family="'SF Mono', Menlo, Consolas, monospace" font-size="8.5" font-weight="600" fill="#94a3b8" letter-spacing="0.12em">
+      SCIENCE &amp; LAB REPORTS
+    </text>
+  </g>
+</svg>

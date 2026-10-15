@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" fill="none" role="img" aria-label="NgeLaprak Concept 2 Hex Emblem">
+  <defs>
+    <linearGradient id="c2HexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#6366f1" />
+      <stop offset="100%" stopColor="#1e1b4b" />
+    </linearGradient>
+    <linearGradient id="c2TopGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#818cf8" />
+      <stop offset="100%" stopColor="#4f46e5" />
+    </linearGradient>
+    <linearGradient id="c2LeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#38bdf8" />
+      <stop offset="100%" stopColor="#0284c7" />
+    </linearGradient>
+    <linearGradient id="c2RightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#4338ca" />
+      <stop offset="100%" stopColor="#312e81" />
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Hexagon Badge -->
+  <polygon points="50,6 88,28 88,72 50,94 12,72 12,28" fill="url(#c2HexGrad)" stroke="#a5b4fc" stroke-width="2" stroke-linejoin="round" />
+
+  <!-- Isometric Report Cube forming 'N' -->
+  <!-- Top Face (Document Sheet) -->
+  <polygon points="50,22 74,36 50,50 26,36" fill="url(#c2TopGrad)" />
+  <line x1="36" y1="36" x2="50" y2="44" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.8" />
+  <line x1="44" y1="31" x2="62" y2="41" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" opacity="0.8" />
+
+  <!-- Left Face (Terminal CLI Console with > _) -->
+  <polygon points="26,36 50,50 50,78 26,64" fill="url(#c2LeftGrad)" />
+  <path d="M33 48 L39 52 L33 56" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="41" y1="56" x2="46" y2="56" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Right Face (Document Margin & Output) -->
+  <polygon points="50,50 74,36 74,64 50,78" fill="url(#c2RightGrad)" />
+  <line x1="56" y1="52" x2="68" y2="45" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="56" y1="60" x2="68" y2="53" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="56" y1="68" x2="68" y2="61" stroke="#a5b4fc" stroke-width="1.5" stroke-linecap="round" />
+
+  <!-- Vertex Node Spark -->
+  <circle cx="50" cy="50" r="3" fill="#ffffff" />
+  <circle cx="50" cy="50" r="5" stroke="#38bdf8" stroke-width="1.5" />
+</svg>

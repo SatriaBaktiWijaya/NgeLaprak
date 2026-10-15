@@ -7,9 +7,9 @@ export const Hero: React.FC = () => {
   const [copied, setCopied] = useState(false)
 
   const commands = {
-    npx: 'npx skills add ngelaprak',
-    powershell: 'irm https://raw.githubusercontent.com/khilma-ainunnajah/NgeLaprak/main/install.ps1 | iex',
-    bash: 'curl -fsSL https://raw.githubusercontent.com/khilma-ainunnajah/NgeLaprak/main/install.sh | bash'
+    npx: 'npx skills add SatriaBaktiWijaya/NgeLaprak',
+    powershell: 'irm https://raw.githubusercontent.com/SatriaBaktiWijaya/NgeLaprak/main/install.ps1 | iex',
+    bash: 'curl -fsSL https://raw.githubusercontent.com/SatriaBaktiWijaya/NgeLaprak/main/install.sh | bash'
   }
 
   const handleCopy = () => {
@@ -268,11 +268,11 @@ export const Hero: React.FC = () => {
           {/* Quick Footer Action inside Window */}
           <div className="pt-4 mt-3 border-t border-white/5 flex items-center justify-center">
             <a
-              href="#samples"
+              href="#tutorial"
               className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-white transition-colors font-mono cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
-              <span>Inspeksi Dokumen Hasil Lengkap</span>
+              <span>Lihat Tutorial &amp; Cara Pakai</span>
             </a>
           </div>
         </div>

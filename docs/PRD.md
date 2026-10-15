@@ -95,7 +95,7 @@
 - **Showcase Tooling**:
   Website mengarahkan mahasiswa ke integrasi skill resmi:
   - Ekosistem Agent Skills: `npx skills add ngelaprak`
-  - GitHub Repository Source: `https://github.com/khilma-ainunnajah/NgeLaprak`
+  - GitHub Repository Source: `https://github.com/SatriaBaktiWijaya/NgeLaprak`
   - Kompatibel dengan: Cursor, Google Antigravity, Claude Code, GitHub Copilot.
 
 - **Simulasi Hasil AI (Interactive Preview)**:

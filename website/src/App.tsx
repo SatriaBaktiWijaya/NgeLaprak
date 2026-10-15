@@ -8,7 +8,6 @@ import { TutorSection } from './components/TutorSection'
 import { IdeGallery } from './components/IdeGallery'
 import { BeforeAfter } from './components/BeforeAfter'
 import { FeaturesBento } from './components/FeaturesBento'
-import { SampleViewer } from './components/SampleViewer'
 import { InstallGuide } from './components/InstallGuide'
 import { Footer } from './components/Footer'
 
@@ -63,7 +62,6 @@ export const App: React.FC = () => {
         <IdeGallery />
         <BeforeAfter />
         <FeaturesBento />
-        <SampleViewer />
         <InstallGuide />
       </main>
 
