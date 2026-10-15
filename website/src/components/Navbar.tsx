@@ -14,37 +14,52 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20)
+      setScrolled(window.scrollY > 30)
     }
-    window.addEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   return (
     <>
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[94%] max-w-5xl transition-all duration-300">
+      <header
+        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out ${
+          scrolled
+            ? 'top-2 sm:top-3 w-[90%] max-w-4xl'
+            : 'top-4 sm:top-5 w-[94%] max-w-5xl'
+        }`}
+      >
         <div
-          className={`flex items-center justify-between px-4 sm:px-5 py-2.5 rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
+          className={`flex items-center justify-between rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
             scrolled
-              ? 'bg-[#090A0F]/90 backdrop-blur-2xl border-white/12 shadow-2xl shadow-black/80'
-              : 'bg-[#0D0E17]/80 backdrop-blur-xl border-white/8 shadow-xl shadow-black/50'
+              ? 'bg-[#090A0F]/90 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/90 px-3.5 sm:px-4 py-1.5 sm:py-2'
+              : 'bg-[#0D0E17]/80 backdrop-blur-xl border-white/8 shadow-xl shadow-black/50 px-4 sm:px-5 py-2.5 sm:py-3'
           }`}
         >
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
-            <NgeLaprakLogo size={28} className="group-hover:scale-105 active:scale-95 transition-all shadow-md shadow-indigo-600/30 rounded-xl" />
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-sm sm:text-base tracking-tight text-white font-sans">
+          <a href="#" className="flex items-center gap-2 sm:gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+            <NgeLaprakLogo
+              size={scrolled ? 24 : 28}
+              className="group-hover:scale-105 active:scale-95 transition-all duration-300 shadow-md shadow-indigo-600/30 rounded-xl"
+            />
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className={`font-bold tracking-tight text-white font-sans transition-all duration-300 ${
+                scrolled ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+              }`}>
                 Nge<span className="text-indigo-400">Laprak</span>
               </span>
-              <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 tabular-nums">
+              <span className={`font-mono font-semibold rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 tabular-nums transition-all duration-300 ${
+                scrolled ? 'text-[9px] px-1.5 py-0' : 'text-[10px] px-1.5 py-0.5'
+              }`}>
                 v1.2
               </span>
             </div>
           </a>
 
           {/* Desktop Links */}
-          <nav className="hidden lg:flex items-center gap-5 text-xs text-slate-300 font-medium">
+          <nav className={`hidden lg:flex items-center font-medium transition-all duration-300 ${
+            scrolled ? 'gap-4 text-[11px] text-slate-300' : 'gap-5 text-xs text-slate-300'
+          }`}>
             <a href="#tutorial" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Tutorial
             </a>
@@ -63,31 +78,37 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
             <a
               href="https://saweria.co/satriabaktiwijaya"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-100 border border-amber-500/30 hover:border-amber-400/50 shadow-sm shadow-amber-950/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 group"
+              className={`flex items-center gap-1.5 rounded-full font-semibold text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 hover:text-amber-100 border border-amber-500/30 hover:border-amber-400/50 shadow-sm shadow-amber-950/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 group ${
+                scrolled ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
+              }`}
               title="Traktir Kopi di Saweria"
             >
-              <Coffee className="w-3.5 h-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <Coffee className={`text-amber-400 group-hover:scale-110 transition-transform ${scrolled ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
               <span>Traktir Kopi</span>
             </a>
             <a
               href="https://github.com/SatriaBaktiWijaya/NgeLaprak"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className={`flex items-center gap-1.5 rounded-full font-medium text-slate-300 bg-white/5 hover:bg-white/10 hover:text-white border border-white/10 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                scrolled ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs'
+              }`}
             >
-              <GithubIcon className="w-3.5 h-3.5" />
+              <GithubIcon className={scrolled ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
               <span>GitHub</span>
             </a>
             <a
               href="#install"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              className={`flex items-center gap-1.5 rounded-full font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 active:scale-[0.98] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                scrolled ? 'px-3 py-1 text-[11px]' : 'px-3.5 py-1.5 text-xs'
+              }`}
             >
-              <Terminal className="w-3 h-3 text-indigo-200" />
+              <Terminal className={scrolled ? 'w-2.5 h-2.5 text-indigo-200' : 'w-3 h-3 text-indigo-200'} />
               <span>Install Skill</span>
             </a>
           </div>

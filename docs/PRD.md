@@ -13,7 +13,7 @@
 
 - **Success Criteria**:
   1. **Speed & Performance**: Website memuat halaman pertama (First Contentful Paint) dalam waktu < 0.8 detik dan mencapai skor Google Lighthouse Performance >= 95.
-  2. **Copy Conversion Rate**: Tingkat klik tombol "Copy Command" (`npx skills add ngelaprak`) mencapai >= 25% dari total kunjungan unik.
+  2. **Copy Conversion Rate**: Tingkat klik tombol "Copy Command" (`npx skills add SatriaBaktiWijaya/NgeLaprak`) mencapai >= 25% dari total kunjungan unik.
   3. **Visual Engagement**: Rata-rata durasi sesi pengunjung (Average Session Duration) >= 60 detik berkat interaksi scroll motion GSAP dan visual shader dithering.
   4. **Zero Layout Shifts**: Cumulative Layout Shift (CLS) = 0 pada perangkat desktop maupun mobile.
 
@@ -42,7 +42,7 @@
 - **Story 1 (Instalasi 1-Klik)**:
   *Sebagai mahasiswa praktikan, saya ingin menyalin perintah instalasi satu baris langsung dari halaman utama agar saya bisa segera menggunakannya di AI agent saya tanpa membaca dokumentasi panjang.*
   - **Acceptance Criteria**:
-    - [x] Tombol CTA terminal di Hero section menampilkan teks `npx skills add ngelaprak`.
+    - [x] Tombol CTA terminal di Hero section menampilkan teks `npx skills add SatriaBaktiWijaya/NgeLaprak`.
     - [x] Sekali klik tombol copy, perintah tersalin ke clipboard sistem.
     - [x] Muncul feedback visual micro-animation (ikon berubah menjadi centang hijau dan teks "Tersalin!" selama 2 detik).
     - [x] Disediakan toggle tab alternatif: `npx`, `powershell (install.ps1)`, dan `bash (install.sh)`.
@@ -94,7 +94,7 @@
 
 - **Showcase Tooling**:
   Website mengarahkan mahasiswa ke integrasi skill resmi:
-  - Ekosistem Agent Skills: `npx skills add ngelaprak`
+  - Ekosistem Agent Skills: `npx skills add SatriaBaktiWijaya/NgeLaprak`
   - GitHub Repository Source: `https://github.com/SatriaBaktiWijaya/NgeLaprak`
   - Kompatibel dengan: Cursor, Google Antigravity, Claude Code, GitHub Copilot.
 

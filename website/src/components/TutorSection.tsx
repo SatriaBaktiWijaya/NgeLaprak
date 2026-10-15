@@ -245,7 +245,7 @@ const TerminalIllustration: React.FC = () => (
       {/* ── Terminal Body Content ── */}
       {/* Line 1: Command prompt */}
       <text x="60" y="84" fontFamily="monospace" fontSize="13" fontWeight="bold" fill="#818cf8">&gt;</text>
-      <text x="78" y="84" fontFamily="monospace" fontSize="12" fontWeight="600" fill="#e0e7ff">npx skills add ngelaprak</text>
+      <text x="78" y="84" fontFamily="monospace" fontSize="10" fontWeight="600" fill="#e0e7ff">npx skills add SatriaBaktiWijaya/NgeLaprak</text>
 
       {/* Line 2: Status check */}
       <circle cx="64" cy="107" r="4" fill="#10b981" />
@@ -417,7 +417,7 @@ export const TutorSection: React.FC = () => {
   const [copiedPrompt, setCopiedPrompt] = useState(false)
 
   const studentPrompt =
-    'npx skills add ngelaprak && bantu aku selesaikan laporan praktikum ini sesuai modul dan template yang ada di workspace'
+    'npx skills add SatriaBaktiWijaya/NgeLaprak && bantu aku selesaikan laporan praktikum ini sesuai modul dan template yang ada di workspace'
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(studentPrompt)
