@@ -55,6 +55,7 @@ def main():
     # Command: render
     parser_render = subparsers.add_parser("render", help="Render screenshot kode IDE otentik")
     parser_render.add_argument("--ide", choices=["netbeans", "codeblocks", "vscode", "database"], default="netbeans", help="Target IDE")
+    parser_render.add_argument("--theme", choices=["dark", "light"], default="dark", help="Tema editor (khusus VS Code: default dark)")
     parser_render.add_argument("--file", required=True, help="File kode sumber")
     parser_render.add_argument("--out", default="screenshot.png", help="Path output gambar")
     parser_render.add_argument("--start", type=int, default=1, help="Baris awal")
@@ -139,7 +140,7 @@ def main():
         print(format_context_summary(ctx))
 
     elif args.command == "render":
-        from ngelaprak.renderers import render_netbeans_code, render_codeblocks_code, render_vscode_code, render_database_view
+        from ngelaprak.renderers import render_netbeans_code, render_codeblocks_code, render_vscode_code, render_database_query
         with open(args.file, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
             
@@ -149,9 +150,9 @@ def main():
         elif args.ide == "codeblocks":
             render_codeblocks_code(content, start_line=args.start, end_line=args.end, out_path=args.out)
         elif args.ide == "vscode":
-            render_vscode_code(content, start_line=args.start, end_line=args.end, out_path=args.out)
+            render_vscode_code(content, filename=fname, theme=args.theme, start_line=args.start, end_line=args.end, out_path=args.out)
         elif args.ide == "database":
-            render_database_view(query=content, out_path=args.out)
+            render_database_query(query_sql=content, columns=["id", "result"], rows=[[1, "Success"]], out_path=args.out)
         print(f"[NgeLaprak] Screenshot {args.ide} berhasil disimpan ke: {args.out}")
 
     elif args.command == "simulate-cli":
