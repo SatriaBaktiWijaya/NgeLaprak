@@ -36,9 +36,6 @@
 
     <!-- Dynamic Diagonal Code Chevron -->
     <path d="M26 26 L68 68 L74 68 L32 26 Z" fill="url(#favBeam)" />
-
-    <!-- Code Chevron in Center -->
-    <path d="M45 42 L53 50 L45 58" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
   </g>
 
   <!-- 4-Point AI Sparkle -->

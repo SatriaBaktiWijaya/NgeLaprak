@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Download, ExternalLink, BookOpen, FileDown } from 'lucide-react'
+import { Download, ExternalLink, BookOpen, FileDown, Code } from 'lucide-react'
 
 export const SampleViewer: React.FC = () => {
   const [activeCourse, setActiveCourse] = useState<'strukdat' | 'adpl'>('strukdat')
@@ -9,6 +9,8 @@ export const SampleViewer: React.FC = () => {
     strukdat: {
       name: 'Struktur Data (C++)',
       sub: 'Modul 3 — Stack & Linked List',
+      codeUrl: '/samples/strukdat/main.cpp',
+      codeName: 'main.cpp',
       pdfUrl: '/samples/strukdat/LAPRAK_SAMPLE_STRUKDAT_MODUL3.pdf',
       docxUrl: '/samples/strukdat/LAPRAK_SAMPLE_STRUKDAT_MODUL3.docx',
       previewImg: '/samples/strukdat/preview_sample.png',
@@ -17,6 +19,8 @@ export const SampleViewer: React.FC = () => {
     adpl: {
       name: 'ADPL / PBO (Java)',
       sub: 'Modul 4 — Swing GUI & MySQL',
+      codeUrl: '/samples/adpl/KoneksiDB.java',
+      codeName: 'KoneksiDB.java',
       pdfUrl: '/samples/adpl/LAPRAK_SAMPLE_ADPL_MODUL4.pdf',
       docxUrl: '/samples/adpl/LAPRAK_SAMPLE_ADPL_MODUL4.docx',
       previewImg: '/samples/adpl/preview_sample.png',
@@ -36,7 +40,7 @@ export const SampleViewer: React.FC = () => {
             <span>Dokumen Nyata</span>
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-[-0.035em] mb-3 font-sans [text-wrap:balance]">
-            Inspeksi Dokumen Hasil <span className="text-indigo-400">Word &amp; PDF</span>
+            Inspeksi Dokumen Hasil <span className="text-indigo-400">Word, PDF &amp; Kode</span>
           </h2>
           <p className="text-slate-400 text-sm sm:text-base leading-relaxed [text-wrap:pretty]">
             Lihat langsung berkas laporan yang dihasilkan skill ini pada praktikum mahasiswa sesungguhnya.
@@ -104,22 +108,31 @@ export const SampleViewer: React.FC = () => {
               </div>
 
               {/* Action buttons */}
-              <div className="flex items-center gap-3 pt-4 border-t border-white/10">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-4 border-t border-white/10 text-[10.5px] sm:text-xs">
+                <a
+                  href={current.codeUrl}
+                  download
+                  className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/25 transition-all text-center truncate"
+                  title={`Unduh ${current.codeName}`}
+                >
+                  <Code className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="truncate">{current.codeName}</span>
+                </a>
                 <a
                   href={current.pdfUrl}
                   download
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold border border-white/10 transition-all text-center"
+                  className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white font-semibold border border-white/10 transition-all text-center truncate"
                 >
-                  <FileDown className="w-3.5 h-3.5 text-rose-400" />
-                  <span>Download .PDF</span>
+                  <FileDown className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>.PDF</span>
                 </a>
                 <a
                   href={current.docxUrl}
                   download
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 transition-all text-center"
+                  className="flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-md shadow-indigo-600/30 transition-all text-center truncate"
                 >
-                  <Download className="w-3.5 h-3.5 text-white" />
-                  <span>Download .DOCX</span>
+                  <Download className="w-3.5 h-3.5 text-white shrink-0" />
+                  <span>.DOCX</span>
                 </a>
               </div>
             </div>

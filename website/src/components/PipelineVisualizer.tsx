@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { FileCode, FileText, LayoutTemplate, Sparkles, CheckCircle2, FileType, Check, Eye, ArrowRight } from 'lucide-react'
+import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 export const PipelineVisualizer: React.FC = () => {
   const [selectedInput, setSelectedInput] = useState<number>(0)
@@ -132,9 +133,7 @@ export const PipelineVisualizer: React.FC = () => {
             <div className="h-full bg-[#0D0F18] border border-indigo-500/30 rounded-2xl p-5 sm:p-6 shadow-2xl relative overflow-hidden backdrop-blur-xl flex flex-col justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <div>
                 <div className="flex flex-col items-center text-center mb-5">
-                  <div className="w-11 h-11 rounded-2xl bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center mb-2.5 text-indigo-400 shadow-lg shadow-indigo-600/20">
-                    <Sparkles className="w-5 h-5 text-indigo-400" />
-                  </div>
+                  <NgeLaprakLogo size={46} className="rounded-xl shadow-xl shadow-indigo-600/30 mb-2.5" />
                   <h3 className="font-bold text-white text-sm sm:text-base font-sans tracking-[-0.02em]">
                     NgeLaprak Autonomous Engine
                   </h3>
@@ -178,31 +177,54 @@ export const PipelineVisualizer: React.FC = () => {
           </div>
 
           {/* STEP 3: The Outputs (Col 4) */}
-          <div className="lg:col-span-4 flex flex-col gap-3">
+          <div className="lg:col-span-4 flex flex-col gap-2.5">
             <div className="flex items-center justify-between px-1">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono">
-                [OUTPUT] Dokumen Matang
+                [OUTPUT] 3 Berkas Matang
               </span>
-              <span className="text-[11px] text-emerald-400 font-mono">100% Terformat</span>
+              <span className="text-[11px] text-emerald-400 font-mono">100% Siap Kumpul</span>
+            </div>
+
+            {/* Code Output Card */}
+            <div className="p-3.5 rounded-2xl bg-[#0D0F18] border border-white/8 hover:border-emerald-500/30 transition-all text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <div className="flex items-start gap-3.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400">
+                  <FileCode className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <h4 className="font-bold text-white text-xs sm:text-sm">Kode Sumber Program</h4>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                      Siap Run
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 mb-1.5 leading-relaxed">
+                    Struktur folder resmi (Maven / modular C++), sintaks rapi dan tervalidasi AST.
+                  </p>
+                  <div className="flex items-center gap-1.5 text-[9.5px] font-mono text-slate-400">
+                    <Check className="w-3 h-3 text-emerald-400" /> Bebas Error Kompilasi &amp; Lolos Run
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Word Card */}
-            <div className="p-4 rounded-2xl bg-[#0D0F18] border border-white/8 hover:border-indigo-500/30 transition-all text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="p-3.5 rounded-2xl bg-[#0D0F18] border border-white/8 hover:border-indigo-500/30 transition-all text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <div className="flex items-start gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-400">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-400">
                   <FileType className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-1">
                     <h4 className="font-bold text-white text-xs sm:text-sm">Dokumen Word (.docx)</h4>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
                       Editable
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-2 leading-relaxed">
-                    Margin 4-4-3-3, font 12pt Times New Roman, spasi 1.5, dan cover otomatis dengan logo universitas.
+                  <p className="text-[10.5px] text-slate-400 mb-1.5 leading-relaxed">
+                    Margin 4-4-3-3, font 12pt Times New Roman, spasi 1.5, dan cover logo resmi.
                   </p>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                  <div className="flex items-center gap-1.5 text-[9.5px] font-mono text-slate-400">
                     <Check className="w-3 h-3 text-emerald-400" /> Heading 1, 2, 3 Terstandarisasi
                   </div>
                 </div>
@@ -210,23 +232,23 @@ export const PipelineVisualizer: React.FC = () => {
             </div>
 
             {/* PDF Card */}
-            <div className="p-4 rounded-2xl bg-[#0D0F18] border border-white/8 hover:border-indigo-500/30 transition-all text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+            <div className="p-3.5 rounded-2xl bg-[#0D0F18] border border-white/8 hover:border-indigo-500/30 transition-all text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <div className="flex items-start gap-3.5">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-400">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-indigo-400">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-1">
                     <h4 className="font-bold text-white text-xs sm:text-sm">Dokumen PDF (.pdf)</h4>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-rose-500/10 text-rose-300 border border-rose-500/20">
                       Print-Ready
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mb-2 leading-relaxed">
-                    Siap upload langsung ke portal e-learning kampus tanpa layout bergeser atau font missing.
+                  <p className="text-[10.5px] text-slate-400 mb-1.5 leading-relaxed">
+                    Siap upload langsung ke portal kampus tanpa layout geser atau font missing.
                   </p>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400">
-                    <Check className="w-3 h-3 text-emerald-400" /> Vector Sharpness & Standar Lab
+                  <div className="flex items-center gap-1.5 text-[9.5px] font-mono text-slate-400">
+                    <Check className="w-3 h-3 text-emerald-400" /> Vector Sharpness &amp; Standar Lab
                   </div>
                 </div>
               </div>

@@ -84,15 +84,6 @@ export const NgeLaprakLogo: React.FC<NgeLaprakLogoProps> = ({
 
         {/* Dynamic Diagonal Code Chevron */}
         <path d="M26 26 L68 68 L74 68 L32 26 Z" fill="url(#nlLogoBeam)" />
-
-        {/* Code Chevron in Center */}
-        <path
-          d="M45 42 L53 50 L45 58"
-          stroke="#ffffff"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
       </g>
 
       {/* 4-Point AI Sparkle / Quantum Star */}

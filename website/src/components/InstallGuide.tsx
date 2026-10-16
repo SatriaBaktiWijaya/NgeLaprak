@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Terminal, Copy, Check, Sparkles, ExternalLink, Coffee, Heart } from 'lucide-react'
+import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 /* ─────────────────────────────────────────────────────
    Animated Steaming Coffee Cup SVG Illustration
@@ -73,13 +74,13 @@ export const InstallGuide: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           
           {/* LEFT: Main Install CTA Card (Col 7) */}
-          <div className="lg:col-span-7 rounded-3xl bg-gradient-to-b from-[#111424] via-[#0D0F18] to-[#0A0B12] border border-indigo-500/30 p-7 sm:p-9 text-left relative overflow-hidden shadow-2xl shadow-indigo-950/30 flex flex-col justify-between">
+          <div className="lg:col-span-7 rounded-3xl bg-gradient-to-b from-[#111424] via-[#0D0F18] to-[#0A0B12] border border-indigo-500/30 p-5 sm:p-7 md:p-9 text-left relative overflow-hidden shadow-2xl shadow-indigo-950/30 flex flex-col justify-between">
             {/* Ambient Indigo Glow */}
             <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/[0.08] blur-[80px] rounded-full pointer-events-none" />
 
             <div className="relative z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono uppercase tracking-wider mb-4">
-                <Sparkles className="w-3.5 h-3.5" />
+                <NgeLaprakLogo size={14} className="rounded-sm" />
                 <span>Instalasi Cepat</span>
               </div>
 
@@ -94,14 +95,14 @@ export const InstallGuide: React.FC = () => {
 
             <div className="relative z-10 mt-auto">
               {/* Terminal Command Bar */}
-              <div className="inline-flex items-center gap-2 p-2 rounded-2xl bg-[#07080E] border border-white/10 w-full justify-between shadow-2xl mb-5">
-                <div className="flex items-center gap-2 font-mono text-xs sm:text-sm text-slate-200 px-3 truncate">
+              <div className="inline-flex items-center gap-2 p-1.5 sm:p-2 rounded-2xl bg-[#07080E] border border-white/10 w-full justify-between shadow-2xl mb-5">
+                <div className="flex items-center gap-2 font-mono text-xs sm:text-sm text-slate-200 px-2 sm:px-3 truncate">
                   <span className="text-indigo-400 select-none font-bold">$</span>
                   <span className="select-all truncate">{cmd}</span>
                 </div>
                 <button
                   onClick={handleCopy}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer ${
                     copied
                       ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/30'
                       : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 active:scale-[0.98]'
@@ -125,7 +126,7 @@ export const InstallGuide: React.FC = () => {
           </div>
 
           {/* RIGHT: Decorated Saweria / Buy Me a Coffee Card (Col 5) */}
-          <div className="lg:col-span-5 rounded-3xl bg-gradient-to-b from-[#191307] via-[#100D06] to-[#0A0804] border border-amber-500/35 hover:border-amber-400/60 p-7 sm:p-9 text-center relative overflow-hidden shadow-2xl shadow-amber-950/30 flex flex-col justify-between transition-all duration-300 group">
+          <div className="lg:col-span-5 rounded-3xl bg-gradient-to-b from-[#191307] via-[#100D06] to-[#0A0804] border border-amber-500/35 hover:border-amber-400/60 p-5 sm:p-7 md:p-9 text-center relative overflow-hidden shadow-2xl shadow-amber-950/30 flex flex-col justify-between transition-all duration-300 group">
             {/* Ambient Amber Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[70px] rounded-full pointer-events-none" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 blur-[60px] rounded-full pointer-events-none" />
