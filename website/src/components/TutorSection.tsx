@@ -437,7 +437,12 @@ export const TutorSection: React.FC = () => {
   return (
     <section id="tutorial" className="py-20 md:py-28 relative overflow-hidden bg-[#090A0F]">
       {/* Background ambient lighting */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[350px] bg-indigo-600/[0.04] blur-[140px] rounded-full pointer-events-none" />
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[350px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.08) 0%, transparent 70%)'
+        }}
+      />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
         {/* Section Header */}

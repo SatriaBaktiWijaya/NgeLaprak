@@ -1,4 +1,4 @@
-import React, { useId } from 'react'
+import React from 'react'
 
 interface SafeImageDitheringProps {
   image: string
@@ -18,67 +18,59 @@ interface SafeImageDitheringProps {
 
 /**
  * SafeImageDithering
- * A high-performance, 100% mobile-safe dithering background component.
- * Uses hardware-accelerated CSS and SVG pattern rendering instead of heavy WebGL contexts,
- * eliminating iOS WebKit/Safari memory crashes ("This webpage was reloaded because a problem occurred")
- * while maintaining the crisp retro-futuristic dot-matrix aesthetic.
+ * 100% Mobile & WebKit Safe Dithering / Tech Dot Background.
+ * 
+ * Uses pure CSS radial-gradient tiling instead of SVG userSpaceOnUse patterns or WebGL contexts.
+ * This completely prevents iOS WebKit GPU process buffer allocation failures (OOM crashes)
+ * on tall sections (Hero, Bento, IDE Gallery) in mobile Safari and In-App browsers (Instagram, etc.)
+ * while preserving the signature dark tech dot-matrix and ambient aesthetic.
  */
 export const SafeImageDithering: React.FC<SafeImageDitheringProps> = ({
   image,
-  colorBack = '#090a0f',
-  colorFront = '#6366f1',
-  colorHighlight = '#818cf8',
+  colorBack = '#090A0F',
+  colorFront = '#6366F1',
   className = 'w-full h-full',
   size = 2
 }) => {
-  const patternId = useId().replace(/:/g, '')
-  const dotSize = Math.max(1.5, size * 1.5)
-  const spacing = Math.max(6, size * 4.5)
+  // Spacing in pixels for the CSS dot pattern (clean & performant)
+  const spacing = Math.max(12, Math.round(size * 7))
 
   return (
     <div className={`relative overflow-hidden pointer-events-none select-none ${className}`}>
-      {/* Background Image with high-contrast grayscale filter */}
+      {/* Background Image (Desaturated & Ambient) */}
       {image && (
         <img
           src={image}
           alt=""
-          className="w-full h-full object-cover filter contrast-125 brightness-[0.65] grayscale-[0.8] transition-opacity duration-700"
+          className="w-full h-full object-cover opacity-25 transition-opacity duration-500"
           loading="lazy"
+          decoding="async"
         />
       )}
 
-      {/* Primary Color Tint Overlay (Mix Blend) */}
+      {/* Subtle Color Wash Overlay (Zero mix-blend-mode to avoid GPU layer crashes) */}
       <div
-        className="absolute inset-0 mix-blend-color pointer-events-none opacity-60"
-        style={{ backgroundColor: colorFront }}
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          background: `radial-gradient(circle at center, ${colorFront} 0%, transparent 75%)`
+        }}
       />
 
-      {/* High-Performance SVG Tech Dot-Matrix Pattern */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-45" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern
-            id={patternId}
-            width={spacing}
-            height={spacing}
-            patternUnits="userSpaceOnUse"
-          >
-            {/* Center dot */}
-            <circle cx={spacing / 2} cy={spacing / 2} r={dotSize / 2} fill={colorHighlight} opacity="0.75" />
-            {/* Corner dots */}
-            <circle cx="0" cy="0" r={dotSize / 3} fill={colorFront} opacity="0.5" />
-            <circle cx={spacing} cy="0" r={dotSize / 3} fill={colorFront} opacity="0.5" />
-            <circle cx="0" cy={spacing} r={dotSize / 3} fill={colorFront} opacity="0.5" />
-            <circle cx={spacing} cy={spacing} r={dotSize / 3} fill={colorFront} opacity="0.5" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-      </svg>
+      {/* Lightweight CSS Dot-Matrix Pattern (Zero SVG DOM nodes, 100% crash-free) */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-35"
+        style={{
+          backgroundImage: `radial-gradient(circle, ${colorFront} 1.25px, transparent 1.25px)`,
+          backgroundSize: `${spacing}px ${spacing}px`,
+          backgroundPosition: 'center center'
+        }}
+      />
 
-      {/* Smooth Ambient Vignette */}
+      {/* Soft Ambient Vignette */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `radial-gradient(circle at center, transparent 35%, ${colorBack} 95%)`
+          background: `radial-gradient(ellipse at center, transparent 30%, ${colorBack} 90%)`
         }}
       />
     </div>

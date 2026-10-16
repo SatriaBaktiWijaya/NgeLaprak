@@ -199,9 +199,8 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   width: 500px;
   height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, transparent 70%);
   pointer-events: none;
-  filter: blur(80px);
 }
 
 /* Refined Gradient Text (High contrast, no oversaturated purple/pink) */

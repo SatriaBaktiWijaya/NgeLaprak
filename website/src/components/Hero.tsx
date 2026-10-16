@@ -125,7 +125,12 @@ export const Hero: React.FC = () => {
         {/* Floating Centerpiece Preview Frame: Minimalist Visual File-Flow Diagram */}
         <div className="max-w-4xl mx-auto rounded-3xl bg-[#0D101D]/90 border border-white/10 p-5 sm:p-7 shadow-2xl backdrop-blur-2xl text-left relative overflow-hidden group">
           {/* Subtle glow border aura */}
-          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+          <div
+            className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.18) 0%, transparent 70%)'
+            }}
+          />
 
           {/* Window Header */}
           <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/8 text-xs font-mono">

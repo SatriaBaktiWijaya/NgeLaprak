@@ -76,7 +76,12 @@ export const InstallGuide: React.FC = () => {
           {/* LEFT: Main Install CTA Card (Col 7) */}
           <div className="lg:col-span-7 rounded-3xl bg-gradient-to-b from-[#111424] via-[#0D0F18] to-[#0A0B12] border border-indigo-500/30 p-5 sm:p-7 md:p-9 text-left relative overflow-hidden shadow-2xl shadow-indigo-950/30 flex flex-col justify-between">
             {/* Ambient Indigo Glow */}
-            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-600/[0.08] blur-[80px] rounded-full pointer-events-none" />
+            <div
+              className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at top right, rgba(99, 102, 241, 0.15) 0%, transparent 70%)'
+              }}
+            />
 
             <div className="relative z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono uppercase tracking-wider mb-4">
@@ -128,8 +133,18 @@ export const InstallGuide: React.FC = () => {
           {/* RIGHT: Decorated Saweria / Buy Me a Coffee Card (Col 5) */}
           <div className="lg:col-span-5 rounded-3xl bg-gradient-to-b from-[#191307] via-[#100D06] to-[#0A0804] border border-amber-500/35 hover:border-amber-400/60 p-5 sm:p-7 md:p-9 text-center relative overflow-hidden shadow-2xl shadow-amber-950/30 flex flex-col justify-between transition-all duration-300 group">
             {/* Ambient Amber Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[70px] rounded-full pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 blur-[60px] rounded-full pointer-events-none" />
+            <div
+              className="absolute top-0 right-0 w-64 h-64 rounded-full pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.15) 0%, transparent 70%)'
+              }}
+            />
+            <div
+              className="absolute bottom-0 left-0 w-48 h-48 rounded-full pointer-events-none"
+              style={{
+                background: 'radial-gradient(circle at bottom left, rgba(249, 115, 22, 0.15) 0%, transparent 70%)'
+              }}
+            />
 
             <div className="relative z-10">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-mono uppercase tracking-wider mb-4">

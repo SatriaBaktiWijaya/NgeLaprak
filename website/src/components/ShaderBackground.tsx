@@ -3,11 +3,31 @@ import React from 'react'
 export const ShaderBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
-      {/* Supaste-inspired Cosmic Glow Aura */}
-      <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-indigo-500/20 via-purple-600/10 to-transparent blur-[140px] rounded-full pointer-events-none" />
-      <div className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-indigo-600/15 blur-[100px] rounded-full pointer-events-none" />
-      <div className="absolute top-[45%] -left-40 w-[600px] h-[600px] bg-indigo-900/10 blur-[130px] rounded-full pointer-events-none" />
-      <div className="absolute top-[60%] -right-40 w-[600px] h-[600px] bg-purple-900/10 blur-[130px] rounded-full pointer-events-none" />
+      {/* Supaste-inspired Cosmic Glow Aura (Using GPU-friendly native radial gradients with zero blur filters) */}
+      <div
+        className="absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.16) 0%, rgba(124, 58, 237, 0.08) 40%, transparent 70%)'
+        }}
+      />
+      <div
+        className="absolute top-[20%] left-1/2 -translate-x-1/2 w-[600px] h-[350px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, rgba(79, 70, 229, 0.12) 0%, transparent 70%)'
+        }}
+      />
+      <div
+        className="absolute top-[45%] -left-40 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at center, rgba(49, 46, 129, 0.12) 0%, transparent 70%)'
+        }}
+      />
+      <div
+        className="absolute top-[60%] -right-40 w-[600px] h-[600px] rounded-full pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at center, rgba(88, 28, 135, 0.10) 0%, transparent 70%)'
+        }}
+      />
 
       {/* Subtle modern tech grid overlay */}
       <div
