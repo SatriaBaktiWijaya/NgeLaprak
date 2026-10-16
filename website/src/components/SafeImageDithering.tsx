@@ -1,49 +1,4 @@
-import React, { Component, useState, useEffect, type ErrorInfo, type ReactNode } from 'react'
-import { ImageDithering } from '@paper-design/shaders-react'
-
-// Detect WebGL2 support safely in browser
-export function isWebGL2Supported(): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    const canvas = document.createElement('canvas')
-    const gl = canvas.getContext('webgl2')
-    return Boolean(gl)
-  } catch {
-    return false
-  }
-}
-
-interface ErrorBoundaryProps {
-  children: ReactNode
-  fallback: ReactNode
-}
-
-interface ErrorBoundaryState {
-  hasError: boolean
-}
-
-class WebGLErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false }
-  }
-
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true }
-  }
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Silently suppress WebGL unsupported errors and switch to fallback
-    console.warn('WebGL2 not available for shader, switched to CSS fallback:', error.message)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback
-    }
-    return this.props.children
-  }
-}
+import React, { useId } from 'react'
 
 interface SafeImageDitheringProps {
   image: string
@@ -61,55 +16,71 @@ interface SafeImageDitheringProps {
   height?: string
 }
 
+/**
+ * SafeImageDithering
+ * A high-performance, 100% mobile-safe dithering background component.
+ * Uses hardware-accelerated CSS and SVG pattern rendering instead of heavy WebGL contexts,
+ * eliminating iOS WebKit/Safari memory crashes ("This webpage was reloaded because a problem occurred")
+ * while maintaining the crisp retro-futuristic dot-matrix aesthetic.
+ */
 export const SafeImageDithering: React.FC<SafeImageDitheringProps> = ({
   image,
+  colorBack = '#090a0f',
+  colorFront = '#6366f1',
+  colorHighlight = '#818cf8',
   className = 'w-full h-full',
-  type = '8x8',
-  size = 2,
-  ...props
+  size = 2
 }) => {
-  const [canRenderWebGL, setCanRenderWebGL] = useState(false)
-  const [hasChecked, setHasChecked] = useState(false)
+  const patternId = useId().replace(/:/g, '')
+  const dotSize = Math.max(1.5, size * 1.5)
+  const spacing = Math.max(6, size * 4.5)
 
-  useEffect(() => {
-    setCanRenderWebGL(isWebGL2Supported())
-    setHasChecked(true)
-  }, [])
-
-  // Universal CSS Dither / Tech Dot fallback (looks great without any GPU/WebGL requirements)
-  const fallback = (
+  return (
     <div className={`relative overflow-hidden pointer-events-none select-none ${className}`}>
+      {/* Background Image with high-contrast grayscale filter */}
       {image && (
         <img
           src={image}
           alt=""
-          className="w-full h-full object-cover filter contrast-125 brightness-75 grayscale opacity-30"
+          className="w-full h-full object-cover filter contrast-125 brightness-[0.65] grayscale-[0.8] transition-opacity duration-700"
           loading="lazy"
         />
       )}
+
+      {/* Primary Color Tint Overlay (Mix Blend) */}
       <div
-        className="absolute inset-0 opacity-25 pointer-events-none"
+        className="absolute inset-0 mix-blend-color pointer-events-none opacity-60"
+        style={{ backgroundColor: colorFront }}
+      />
+
+      {/* High-Performance SVG Tech Dot-Matrix Pattern */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-45" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <pattern
+            id={patternId}
+            width={spacing}
+            height={spacing}
+            patternUnits="userSpaceOnUse"
+          >
+            {/* Center dot */}
+            <circle cx={spacing / 2} cy={spacing / 2} r={dotSize / 2} fill={colorHighlight} opacity="0.75" />
+            {/* Corner dots */}
+            <circle cx="0" cy="0" r={dotSize / 3} fill={colorFront} opacity="0.5" />
+            <circle cx={spacing} cy="0" r={dotSize / 3} fill={colorFront} opacity="0.5" />
+            <circle cx="0" cy={spacing} r={dotSize / 3} fill={colorFront} opacity="0.5" />
+            <circle cx={spacing} cy={spacing} r={dotSize / 3} fill={colorFront} opacity="0.5" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+      </svg>
+
+      {/* Smooth Ambient Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(rgba(99, 102, 241, 0.7) 1px, transparent 1px)',
-          backgroundSize: '10px 10px'
+          background: `radial-gradient(circle at center, transparent 35%, ${colorBack} 95%)`
         }}
       />
     </div>
-  )
-
-  if (!hasChecked || !canRenderWebGL) {
-    return fallback
-  }
-
-  return (
-    <WebGLErrorBoundary fallback={fallback}>
-      <ImageDithering
-        image={image}
-        className={className}
-        type={type}
-        size={size}
-        {...props}
-      />
-    </WebGLErrorBoundary>
   )
 }
