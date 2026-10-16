@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Monitor, Code, Maximize2, Check, Copy } from 'lucide-react'
-import { ImageDithering } from '@paper-design/shaders-react'
+import { SafeImageDithering } from './SafeImageDithering'
 
 interface IdeProfile {
   id: string
@@ -150,7 +150,7 @@ LIMIT 5;`
     <section id="gallery" className="py-20 md:py-28 relative overflow-hidden bg-[#090A0F]">
       {/* Dynamic Image Dithering Background linked to the active IDE screenshot */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
-        <ImageDithering
+        <SafeImageDithering
           key={current.id}
           width="100%"
           height="100%"

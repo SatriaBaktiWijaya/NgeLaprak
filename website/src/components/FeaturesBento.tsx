@@ -9,7 +9,7 @@ import {
   BookOpenCheck,
   Check
 } from 'lucide-react'
-import { ImageDithering } from '@paper-design/shaders-react'
+import { SafeImageDithering } from './SafeImageDithering'
 
 export const FeaturesBento: React.FC = () => {
   const [activeCampus, setActiveCampus] = useState(0)
@@ -25,7 +25,7 @@ export const FeaturesBento: React.FC = () => {
     <section id="features" className="py-20 md:py-28 relative overflow-hidden bg-[#090A0F]">
       {/* Dynamic Image Dithering Shader Background with University Laboratory Photo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
-        <ImageDithering
+        <SafeImageDithering
           width="100%"
           height="100%"
           image="/images/campus_lab.jpg"
