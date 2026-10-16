@@ -4,7 +4,5 @@
     <rect x="22" y="24" width="13" height="52" rx="4.5" />
     <rect x="65" y="24" width="13" height="52" rx="4.5" />
     <path d="M26 26 L68 68 L74 68 L32 26 Z" />
-  </g>
-  <path d="M45 42 L53 50 L45 58" stroke="#0f172a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
   <path d="M78 12 Q78 19 85 19 Q78 19 78 26 Q78 19 71 19 Q78 19 78 12 Z" fill="#f8fafc" />
 </svg>

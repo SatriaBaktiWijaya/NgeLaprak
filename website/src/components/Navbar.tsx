@@ -13,11 +13,30 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null
+
     const handleScroll = () => {
-      setScrolled(window.scrollY > 30)
+      if (window.scrollY <= 15) {
+        setScrolled(false)
+        if (scrollTimer) clearTimeout(scrollTimer)
+        return
+      }
+
+      // Mengecil saat sedang aktif scroll
+      setScrolled(true)
+
+      // Membesar kembali setelah berhenti scroll
+      if (scrollTimer) clearTimeout(scrollTimer)
+      scrollTimer = setTimeout(() => {
+        setScrolled(false)
+      }, 750)
     }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (scrollTimer) clearTimeout(scrollTimer)
+    }
   }, [])
 
   return (
@@ -30,14 +49,14 @@ export const Navbar: React.FC = () => {
         }`}
       >
         <div
-          className={`flex items-center justify-between rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
+          className={`relative flex items-center justify-between rounded-full border transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ${
             scrolled
               ? 'bg-[#090A0F]/90 backdrop-blur-2xl border-white/15 shadow-2xl shadow-black/90 px-3.5 sm:px-4 py-1.5 sm:py-2'
               : 'bg-[#0D0E17]/80 backdrop-blur-xl border-white/8 shadow-xl shadow-black/50 px-4 sm:px-5 py-2.5 sm:py-3'
           }`}
         >
           {/* Brand Logo */}
-          <a href="#" className="flex items-center gap-2 sm:gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg">
+          <a href="#" className="flex items-center gap-2 sm:gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg shrink-0">
             <NgeLaprakLogo
               size={scrolled ? 24 : 28}
               className="group-hover:scale-105 active:scale-95 transition-all duration-300 shadow-md shadow-indigo-600/30 rounded-xl"
@@ -56,8 +75,8 @@ export const Navbar: React.FC = () => {
             </div>
           </a>
 
-          {/* Desktop Links */}
-          <nav className={`hidden lg:flex items-center font-medium transition-all duration-300 ${
+          {/* Desktop Links (Mathematically Centered) */}
+          <nav className={`hidden md:flex items-center font-medium absolute left-1/2 -translate-x-1/2 transition-all duration-300 pointer-events-auto ${
             scrolled ? 'gap-4 text-[11px] text-slate-300' : 'gap-5 text-xs text-slate-300'
           }`}>
             <a href="#tutorial" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
@@ -72,13 +91,10 @@ export const Navbar: React.FC = () => {
             <a href="#features" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Fitur
             </a>
-            <a href="#install" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
-              Instalasi
-            </a>
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden sm:flex items-center gap-1.5 sm:gap-2">
+          <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
             <a
               href="https://saweria.co/satriabaktiwijaya"
               target="_blank"
@@ -89,7 +105,7 @@ export const Navbar: React.FC = () => {
               title="Traktir Kopi di Saweria"
             >
               <Coffee className={`text-amber-400 group-hover:scale-110 transition-transform ${scrolled ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
-              <span>Traktir Kopi</span>
+              <span>Traktir</span>
             </a>
             <a
               href="https://github.com/SatriaBaktiWijaya/NgeLaprak"
@@ -109,14 +125,14 @@ export const Navbar: React.FC = () => {
               }`}
             >
               <Terminal className={scrolled ? 'w-2.5 h-2.5 text-indigo-200' : 'w-3 h-3 text-indigo-200'} />
-              <span>Install Skill</span>
+              <span>Install</span>
             </a>
           </div>
 
           {/* Mobile hamburger button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-md"
+            className="md:hidden p-2 text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-lg active:scale-95"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -163,13 +179,6 @@ export const Navbar: React.FC = () => {
             >
               Fitur Unggulan
             </a>
-            <a
-              href="#install"
-              onClick={() => setMobileMenuOpen(false)}
-              className="hover:text-indigo-400 transition-colors"
-            >
-              Instalasi CLI
-            </a>
 
             <div className="w-32 h-px bg-white/10 my-2" />
 
@@ -195,10 +204,10 @@ export const Navbar: React.FC = () => {
             <a
               href="#install"
               onClick={() => setMobileMenuOpen(false)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 active:scale-[0.98] transition-all"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 active:scale-[0.98] transition-all max-w-[280px] w-full"
             >
-              <Terminal className="w-3.5 h-3.5 text-indigo-200" />
-              <span>npx skills add SatriaBaktiWijaya/NgeLaprak</span>
+              <Terminal className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
+              <span className="truncate">Install Skill (Terminal)</span>
             </a>
           </nav>
         </div>

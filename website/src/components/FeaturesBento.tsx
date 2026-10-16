@@ -78,7 +78,7 @@ export const FeaturesBento: React.FC = () => {
             </div>
 
             {/* Clean Campus Selector */}
-            <div className="grid grid-cols-2 gap-2 mt-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-auto">
               {campusList.map((campus, idx) => (
                 <button
                   key={idx}
@@ -160,7 +160,7 @@ export const FeaturesBento: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-auto font-mono text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-auto font-mono text-xs">
               <div className="p-3 rounded-xl bg-black/40 border border-white/5 text-slate-300">
                 <div className="text-indigo-400 font-semibold mb-1 flex items-center gap-1.5">
                   <FolderGit2 className="w-3.5 h-3.5" />

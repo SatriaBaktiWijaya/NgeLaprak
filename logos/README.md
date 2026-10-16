@@ -10,7 +10,7 @@ Official vector logo design specifications and guidelines for **NgeLaprak** — 
 - **Visual Metaphors**:
   - **The Letter 'N'**: Distinct, memorable brand mark.
   - **Academic Document Sheet**: Left spine/margins with standard academic 4-4-3-3 corner indicators.
-  - **Compiler Acceleration Beam**: Dynamic diagonal chevron `< >` executing code directly into the report body.
+  - **Compiler Acceleration Beam**: Dynamic geometric diagonal slash connecting code directly into academic reporting.
   - **AI Quantum Spark**: 4-point star in the top-right corner representing intelligent agent compilation.
 - **Palette**:
   - Primary Indigo: `#4F46E5` (Brand anchor)

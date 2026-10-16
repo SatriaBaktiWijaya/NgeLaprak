@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, ArrowUp, Coffee } from 'lucide-react'
+import { Sparkles, ArrowUp, Coffee, Heart } from 'lucide-react'
 import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
@@ -71,7 +71,21 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Bar */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <div>Dibuat untuk mahasiswa sains komputer &amp; informatika. MIT License.</div>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span>Made with</span>
+            <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline animate-pulse" />
+            <span>by</span>
+            <a
+              href="https://github.com/SatriaBaktiWijaya"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 hover:text-white font-medium underline underline-offset-2 decoration-indigo-400/50 hover:decoration-indigo-400 transition-colors"
+            >
+              Satria
+            </a>
+            <span className="mx-1 text-slate-700">•</span>
+            <span>MIT License</span>
+          </div>
           <div className="font-mono text-[11px] text-slate-600">NetBeans • Code::Blocks • VS Code • DBeaver</div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Sparkles, Terminal, Copy, Check, Download } from 'lucide-react'
+import { Sparkles, Terminal, Copy, Check, Download, Code } from 'lucide-react'
+import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 /* ─────────────────────────────────────────────────────
    SVG Illustration 1 — Folder Workspace (Minimalist & Expressive)
@@ -371,6 +372,14 @@ const ReportIllustration: React.FC = () => (
       <rect x="164" y="171" width="76" height="4" rx="2" fill="#34d399" opacity="0.5" />
     </g>
 
+    {/* ── CODE Companion Badge (Top Left) ── */}
+    <g filter="url(#badgeShadow)">
+      <rect x="50" y="26" width="48" height="40" rx="10" fill="#064e3b" stroke="#10b981" strokeWidth="1.8" />
+      <text x="74" y="51" textAnchor="middle" fontFamily="'JetBrains Mono', Consolas, monospace" fontSize="14" fontWeight="bold" fill="#34d399">
+        &lt;/&gt;
+      </text>
+    </g>
+
     {/* ── DOCX Badge (Left) ── */}
     <g filter="url(#badgeShadow)">
       <rect x="42" y="78" width="64" height="76" rx="12" fill="url(#wordGrad)" stroke="#60a5fa" strokeWidth="2" />
@@ -434,7 +443,7 @@ export const TutorSection: React.FC = () => {
         {/* Section Header */}
         <div className="text-center max-w-2xl mx-auto mb-14 md:mb-18">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-mono uppercase tracking-wider mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
+            <NgeLaprakLogo size={14} className="rounded-sm" />
             <span>Tutorial Praktis</span>
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-[-0.035em] mb-4 font-sans [text-wrap:balance]">
@@ -468,7 +477,7 @@ export const TutorSection: React.FC = () => {
 
             {/* SVG Illustration */}
             <div className="mt-auto pt-4">
-              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-60 sm:h-64 bg-[#08090E] group-hover:border-indigo-500/40 transition-colors shadow-inner flex items-center justify-center">
+              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-52 sm:h-64 bg-[#08090E] group-hover:border-indigo-500/40 transition-colors shadow-inner flex items-center justify-center">
                 <FolderIllustration />
               </div>
             </div>
@@ -494,7 +503,7 @@ export const TutorSection: React.FC = () => {
 
             {/* SVG Illustration */}
             <div className="mt-auto pt-4">
-              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-60 sm:h-64 bg-[#08090E] group-hover:border-indigo-500/40 transition-colors shadow-inner flex items-center justify-center">
+              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-52 sm:h-64 bg-[#08090E] group-hover:border-indigo-500/40 transition-colors shadow-inner flex items-center justify-center">
                 <TerminalIllustration />
               </div>
             </div>
@@ -514,40 +523,55 @@ export const TutorSection: React.FC = () => {
               </div>
 
               <h3 className="text-lg sm:text-xl font-bold text-white mb-2 tracking-tight">
-                Laporan Selesai &amp; Bebas Diedit
+                Laporan &amp; Kode Selesai (Siap Kumpul)
               </h3>
 
-              {/* Download Buttons for DOCX and PDF */}
-              <div className="grid grid-cols-2 gap-2 mb-2">
+              {/* Download Buttons for Code, DOCX, and PDF */}
+              <div className="grid grid-cols-3 gap-1 sm:gap-1.5 mb-2">
+                <a
+                  href="/samples/strukdat/main.cpp"
+                  download
+                  className="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 text-emerald-200 transition-colors text-[10px] sm:text-[11px] font-mono group/btn"
+                  title="Unduh Kode C++"
+                >
+                  <span className="font-bold flex items-center gap-0.5 sm:gap-1 truncate">
+                    <Code className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="truncate">.cpp</span>
+                  </span>
+                  <Download className="w-3 h-3 text-emerald-400 shrink-0 group-hover/btn:translate-y-0.5 transition-transform" />
+                </a>
+
                 <a
                   href="/samples/strukdat/LAPRAK_SAMPLE_STRUKDAT_MODUL3.docx"
                   download
-                  className="flex items-center justify-between p-2 rounded-xl bg-blue-500/10 border border-blue-500/25 hover:bg-blue-500/20 text-blue-200 transition-colors text-xs font-mono"
+                  className="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-blue-500/10 border border-blue-500/25 hover:bg-blue-500/20 text-blue-200 transition-colors text-[10px] sm:text-[11px] font-mono group/btn"
                   title="Unduh DOCX"
                 >
-                  <span className="font-bold flex items-center gap-1.5">
-                    <span className="text-blue-400 font-extrabold">W</span> .docx
+                  <span className="font-bold flex items-center gap-0.5 sm:gap-1 truncate">
+                    <span className="text-blue-400 font-extrabold shrink-0">W</span>
+                    <span className="truncate">.docx</span>
                   </span>
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3 h-3 text-blue-400 shrink-0 group-hover/btn:translate-y-0.5 transition-transform" />
                 </a>
 
                 <a
                   href="/samples/strukdat/LAPRAK_SAMPLE_STRUKDAT_MODUL3.pdf"
                   download
-                  className="flex items-center justify-between p-2 rounded-xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 text-rose-200 transition-colors text-xs font-mono"
+                  className="flex items-center justify-between p-1.5 sm:p-2 rounded-xl bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/20 text-rose-200 transition-colors text-[10px] sm:text-[11px] font-mono group/btn"
                   title="Unduh PDF"
                 >
-                  <span className="font-bold flex items-center gap-1.5">
-                    <span className="text-rose-400 font-extrabold">PDF</span> .pdf
+                  <span className="font-bold flex items-center gap-0.5 sm:gap-1 truncate">
+                    <span className="text-rose-400 font-extrabold shrink-0 text-[9px] sm:text-[10px]">PDF</span>
+                    <span className="truncate">.pdf</span>
                   </span>
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-3 h-3 text-rose-400 shrink-0 group-hover/btn:translate-y-0.5 transition-transform" />
                 </a>
               </div>
             </div>
 
             {/* SVG Illustration */}
             <div className="mt-auto pt-4">
-              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-60 sm:h-64 bg-[#08090E] group-hover:border-emerald-500/40 transition-colors shadow-inner flex items-center justify-center">
+              <div className="rounded-2xl overflow-hidden border border-white/10 relative h-52 sm:h-64 bg-[#08090E] group-hover:border-emerald-500/40 transition-colors shadow-inner flex items-center justify-center">
                 <ReportIllustration />
               </div>
             </div>
@@ -556,7 +580,7 @@ export const TutorSection: React.FC = () => {
         </div>
 
         {/* Dedicated Copy Prompt Banner Below the 3 Cards */}
-        <div className="mt-8 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-[#0D0F18] to-indigo-950/40 border border-indigo-500/25 p-5 sm:p-6 shadow-2xl relative overflow-hidden group">
+        <div className="mt-8 rounded-3xl bg-gradient-to-r from-indigo-950/40 via-[#0D0F18] to-indigo-950/40 border border-indigo-500/25 p-4 sm:p-6 shadow-2xl relative overflow-hidden group">
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
             <div className="flex items-center gap-3 shrink-0">
               <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center shrink-0 shadow-inner">
@@ -573,7 +597,7 @@ export const TutorSection: React.FC = () => {
               </div>
               <button
                 onClick={handleCopyPrompt}
-                className={`shrink-0 flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-xs font-semibold font-mono transition-all duration-200 cursor-pointer ${
+                className={`w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 py-3 px-5 rounded-xl text-xs font-semibold font-mono transition-all duration-200 cursor-pointer ${
                   copiedPrompt
                     ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
                     : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 active:scale-[0.98]'
