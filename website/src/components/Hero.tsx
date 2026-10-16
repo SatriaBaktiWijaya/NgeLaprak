@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Terminal, Copy, Check, Sparkles, FileCode, FileText, ArrowRight, Download, Eye, BookOpen, LayoutTemplate, Code, ArrowDown } from 'lucide-react'
-import { ImageDithering } from '@paper-design/shaders-react'
+import { SafeImageDithering } from './SafeImageDithering'
 import { NgeLaprakLogo } from './NgeLaprakLogo'
 
 export const Hero: React.FC = () => {
@@ -23,7 +23,7 @@ export const Hero: React.FC = () => {
     <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
       {/* Dynamic Image Dithering Shader Background with Telkom University Purwokerto photo */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none select-none z-0">
-        <ImageDithering
+        <SafeImageDithering
           width="100%"
           height="100%"
           image="/images/OIP.webp"
