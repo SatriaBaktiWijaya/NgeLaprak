@@ -7,25 +7,41 @@ from PIL import Image, ImageChops
 
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
-PYTHON_KEYWORDS = {
-    "def", "class", "import", "from", "as", "with", "async", "await", "lambda",
-    "pass", "global", "nonlocal", "del", "assert", "yield"
+PYTHON_CONTROL_KEYWORDS = {
+    "import", "from", "as", "with", "try", "except", "finally", "raise",
+    "return", "if", "else", "elif", "for", "while", "pass", "break",
+    "continue", "in", "is", "not", "and", "or", "global", "nonlocal",
+    "del", "assert", "yield"
 }
-CONTROL_FLOW_KEYWORDS = {
-    "if", "else", "elif", "for", "while", "return", "try", "except", "finally",
-    "raise", "break", "continue", "in", "is", "not", "and", "or", "throw", "catch"
+PYTHON_DEF_KEYWORDS = {"def", "class", "lambda", "async", "await"}
+PYTHON_CONSTANTS = {"True", "False", "None"}
+PYTHON_SELF = {"self", "cls"}
+PYTHON_TYPES = {
+    "int", "str", "float", "bool", "list", "dict", "tuple", "set", "bytes",
+    "object", "type", "List", "Dict", "Tuple", "Set", "Optional", "Union", "Any",
+    "Exception", "BaseException", "ValueError", "TypeError", "KeyError",
+    "ZeroDivisionError", "FileNotFoundError", "IndexError", "AttributeError",
+    "os", "sys", "re", "shutil", "docx", "pypdf", "json", "math", "random",
+    "subprocess", "html", "PIL", "Image", "ImageChops", "PdfReader", "Document",
+    "DataProcessor"
 }
-CONSTANTS = {"True", "False", "None", "self", "cls", "null", "undefined", "this"}
-COMMON_FUNCS = {"print", "len", "range", "str", "int", "float", "list", "dict", "set", "tuple", "open", "type", "input", "append", "get"}
+PYTHON_FUNCS = {
+    "print", "len", "range", "open", "sum", "min", "max", "input",
+    "append", "extend", "insert", "remove", "pop", "clear", "index",
+    "count", "sort", "reverse", "join", "split", "strip", "lstrip", "rstrip",
+    "replace", "lower", "upper", "startswith", "endswith", "format",
+    "find", "items", "keys", "values", "get", "update", "read", "write",
+    "close", "exists", "splitext", "basename", "dirname", "abspath"
+}
 
 def highlight_vscode_line(line_text, is_dark=True):
     if not line_text.strip():
         return "&nbsp;"
         
     esc = html.escape(line_text)
-    
-    # Check comment (# for python, // for c/java/js)
     stripped = esc.strip()
+    
+    # 1. Comments (# for Python, // for C/Java)
     comment_char = None
     if stripped.startswith("#"):
         comment_char = "#"
@@ -34,36 +50,47 @@ def highlight_vscode_line(line_text, is_dark=True):
         
     if comment_char:
         c_idx = esc.find(comment_char)
-        pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-        comment = f'<span class="vsc-comment">{esc[c_idx:]}</span>'
-        return pre + comment
+        if esc[:c_idx].strip() == "":
+            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+            comment = f'<span class="vsc-comment">{esc[c_idx:]}</span>'
+            return pre + comment
 
-    # Tokenize strings, numbers, words, and symbols
-    token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+\b|\b\w+\b|[^\w\s])'
+    # 2. Decorators (@property, @staticmethod)
+    if stripped.startswith("@"):
+        return f'<span class="vsc-decorator">{esc}</span>'.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+
+    # 3. Tokenize strings, numbers, words, and symbols
+    token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+(?:\.\d+)?\b|\b\w+\b|[^\w\s])'
     tokens = re.split(token_pattern, esc)
     out = []
     
     for i, tok in enumerate(tokens):
         if not tok:
             continue
-        # String literal
+        # String literal (VS Code: Orange #ce9178)
         if (tok.startswith('&quot;') and tok.endswith('&quot;')) or (tok.startswith("'") and tok.endswith("'")):
             out.append(f'<span class="vsc-string">{tok}</span>')
-        # Number literal
-        elif tok.isdigit():
+        # Number literal (VS Code: Light Green #b5cea8)
+        elif re.match(r'^\d+(?:\.\d+)?$', tok):
             out.append(f'<span class="vsc-number">{tok}</span>')
-        # Control flow keywords (magenta)
-        elif tok in CONTROL_FLOW_KEYWORDS:
+        # Control flow & imports (VS Code: Magenta #c586c0)
+        elif tok in PYTHON_CONTROL_KEYWORDS:
             out.append(f'<span class="vsc-control">{tok}</span>')
-        # Standard keywords (blue)
-        elif tok in PYTHON_KEYWORDS:
+        # Definition keywords (VS Code: Blue #569cd6)
+        elif tok in PYTHON_DEF_KEYWORDS:
             out.append(f'<span class="vsc-keyword">{tok}</span>')
-        # Constants / Builtins
-        elif tok in CONSTANTS:
+        # Constants True/False/None (VS Code: Blue #569cd6)
+        elif tok in PYTHON_CONSTANTS or tok in PYTHON_SELF:
             out.append(f'<span class="vsc-constant">{tok}</span>')
-        # Functions / Method calls
-        elif tok in COMMON_FUNCS or (i + 1 < len(tokens) and tokens[i + 1] == "("):
+        # Known Types, Modules, and Exceptions (VS Code: Teal #4ec9b0)
+        elif tok in PYTHON_TYPES or (i > 0 and tokens[i-1] in ["class", ":", "-&gt;"]):
+            out.append(f'<span class="vsc-type">{tok}</span>')
+        # Function definitions or calls (VS Code: Yellow #dcdcaa)
+        elif tok in PYTHON_FUNCS or (i + 1 < len(tokens) and tokens[i + 1] == "(") or (i > 1 and tokens[i-2] == "def"):
             out.append(f'<span class="vsc-func">{tok}</span>')
+        # General variables / identifiers (VS Code: Light Blue #9cdcfe)
+        elif re.match(r'^[a-zA-Z_]\w*$', tok):
+            out.append(f'<span class="vsc-var">{tok}</span>')
         else:
             out.append(tok)
             
@@ -78,16 +105,25 @@ def render_vscode_code(
     end_line=None,
     out_path="vscode_shot.png",
     author_tag=None,
-    show_tab=True
+    show_tab=True,
+    active_line_offset=None,
+    with_cursor=True
 ):
     """
     Renders an authentic Visual Studio Code editor snippet.
     Default: VS Code Dark+ / Dark Modern theme with:
     - Dark editor background (#1e1e1e)
     - Active file tab with language icon & close button
-    - Optional breadcrumb navigation
-    - Line number gutter with accurate styling
-    - Rich syntax highlighting matching VS Code default tokens
+    - Breadcrumb navigation
+    - Line number gutter with active line highlight (#ffffff)
+    - Rich syntax highlighting matching VS Code default tokens:
+      * Magenta control flow (#c586c0)
+      * Blue definitions (#569cd6)
+      * Teal types & modules (#4ec9b0)
+      * Yellow functions & methods (#dcdcaa)
+      * Light blue variables (#9cdcfe)
+      * Orange strings (#ce9178)
+      * Light green numbers (#b5cea8)
     - Anti-plagiarism dimension jitter
     """
     out_path = os.path.abspath(out_path)
@@ -106,6 +142,9 @@ def render_vscode_code(
     slice_lines = all_lines[start_line - 1 : end_line]
     num_lines = len(slice_lines)
     
+    if active_line_offset is None and num_lines > 0:
+        active_line_offset = min(17, num_lines - 1) if num_lines > 17 else num_lines - 1
+        
     is_dark = (theme.lower() == "dark")
     bg_color = "#1e1e1e" if is_dark else "#ffffff"
     header_bg = "#181818" if is_dark else "#f3f3f3"
@@ -121,19 +160,27 @@ def render_vscode_code(
     # Syntax colors
     kw_color = "#569cd6" if is_dark else "#0000ff"
     ctrl_color = "#c586c0" if is_dark else "#af00db"
+    type_color = "#4ec9b0" if is_dark else "#267f99"
+    var_color = "#9cdcfe" if is_dark else "#001080"
     str_color = "#ce9178" if is_dark else "#a31515"
     num_color = "#b5cea8" if is_dark else "#098658"
     func_color = "#dcdcaa" if is_dark else "#795e26"
     comment_color = "#6a9955" if is_dark else "#008000"
     const_color = "#569cd6" if is_dark else "#0000ff"
     
-    gutter_html = "".join(f'<div class="vsc-gutter-row">{start_line + i}</div>' for i in range(num_lines))
-    
+    gutter_rows = []
     code_lines_html = []
-    for l in slice_lines:
-        line_hl = highlight_vscode_line(l, is_dark=is_dark)
-        code_lines_html.append(f'<div class="vsc-code-row">{line_hl}</div>')
+    for i, l in enumerate(slice_lines):
+        is_active = (i == active_line_offset)
+        act_g_cls = " active" if is_active else ""
+        act_c_cls = " active" if is_active else ""
+        cursor_elem = '<span class="vsc-cursor"></span>' if (is_active and with_cursor) else ''
         
+        gutter_rows.append(f'<div class="vsc-gutter-row{act_g_cls}">{start_line + i}</div>')
+        line_hl = highlight_vscode_line(l, is_dark=is_dark)
+        code_lines_html.append(f'<div class="vsc-code-row{act_c_cls}">{line_hl}{cursor_elem}</div>')
+        
+    gutter_html = "".join(gutter_rows)
     code_html = "".join(code_lines_html)
     temp_html = os.path.abspath(out_path + ".temp.html")
     
@@ -257,6 +304,9 @@ body {{
     font-size: 12px;
     font-family: 'Consolas', 'Courier New', monospace;
 }}
+.vsc-gutter-row.active {{
+    color: #ffffff !important;
+}}
 .vsc-code-area {{
     background: {bg_color};
     padding-left: 14px;
@@ -267,14 +317,30 @@ body {{
 }}
 .vsc-code-row {{
     height: 20px;
+    box-sizing: border-box;
+}}
+.vsc-code-row.active {{
+    background: {"#282828" if is_dark else "#f5f5f5"};
+    outline: 1px solid {"#2d2d2d" if is_dark else "#e8e8e8"};
 }}
 .vsc-keyword {{ color: {kw_color}; font-weight: 500; }}
 .vsc-control {{ color: {ctrl_color}; font-weight: 500; }}
+.vsc-type {{ color: {type_color}; }}
+.vsc-var {{ color: {var_color}; }}
+.vsc-func {{ color: {func_color}; }}
 .vsc-string {{ color: {str_color}; }}
 .vsc-number {{ color: {num_color}; }}
-.vsc-func {{ color: {func_color}; }}
 .vsc-comment {{ color: {comment_color}; font-style: italic; }}
 .vsc-constant {{ color: {const_color}; }}
+.vsc-decorator {{ color: {func_color}; }}
+.vsc-cursor {{
+    display: inline-block;
+    width: 1.5px;
+    height: 16px;
+    background: {"#aeafad" if is_dark else "#000000"};
+    margin-left: 1px;
+    vertical-align: middle;
+}}
 </style>
 </head>
 <body>

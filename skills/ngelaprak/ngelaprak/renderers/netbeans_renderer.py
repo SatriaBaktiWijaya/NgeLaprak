@@ -14,34 +14,70 @@ JAVA_KEYWORDS = {
     "this", "super", "extends", "implements", "null", "true", "false"
 }
 
-JAVA_FIELDS_REGEX = r"\b(url|user|pass|conn|stmt|rs|nama|jenisKelamin|kode|harga|view|model|table|tableModel|btnSimpan|btnHapus|textKode|textNama|textHarga)\b"
+JAVA_COMMON_TYPES = {
+    "String", "Object", "System", "List", "ArrayList", "Map", "HashMap",
+    "Set", "HashSet", "Integer", "Double", "Boolean", "Character", "Scanner",
+    "Math", "Exception", "Throwable", "Override", "Deprecated"
+}
 
 def highlight_netbeans_java(line_text, is_active=False):
     if not line_text.strip():
         return "&nbsp;"
         
     esc = html.escape(line_text)
+    stripped = esc.strip()
     
-    # Check comment
-    if esc.strip().startswith("//"):
+    # 1. Javadoc / Multi-line Comment
+    if stripped.startswith("/**") or stripped.startswith("/*") or stripped.startswith("*"):
+        c_idx = -1
+        for marker in ["/**", "/*", "*"]:
+            idx = esc.find(marker)
+            if idx != -1 and (c_idx == -1 or idx < c_idx):
+                c_idx = idx
+        if c_idx != -1 and esc[:c_idx].strip() == "":
+            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+            comment = f'<span class="nb-javadoc">{esc[c_idx:]}</span>'
+            return pre + comment
+
+    # 2. Single-line Comment
+    if stripped.startswith("//"):
         c_idx = esc.find("//")
         pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
         comment = f'<span class="nb-comment">{esc[c_idx:]}</span>'
         return pre + comment
-        
-    # Split strings first
-    tokens = re.split(r'(&quot;.*?&quot;|\b\w+\b|[^\w\s])', esc)
+
+    # 3. Class declaration: highlight class name bold
+    class_match = re.search(r'\bclass\s+([A-Za-z0-9_]+)', esc)
+    class_name = class_match.group(1) if class_match else None
+
+    # Tokenize strings, annotations, identifiers, words, symbols
+    tokens = re.split(r'(&quot;.*?&quot;|\'.*?\'|@[A-Za-z0-9_]+|\b\w+\b|[^\w\s])', esc)
     out = []
-    for tok in tokens:
+    
+    for i, tok in enumerate(tokens):
         if not tok:
             continue
+        # String literal (NetBeans: Green #008000)
         if tok.startswith('&quot;') and tok.endswith('&quot;'):
             out.append(f'<span class="nb-string">{tok}</span>')
+        # Char literal (NetBeans: Green #008000)
+        elif tok.startswith("'") and tok.endswith("'"):
+            out.append(f'<span class="nb-string">{tok}</span>')
+        # Annotation (NetBeans: Dark Grey #404040)
         elif tok.startswith("@"):
             out.append(f'<span class="nb-ann">{tok}</span>')
+        # Class declaration name (NetBeans: Bold Black)
+        elif class_name and tok == class_name:
+            out.append(f'<span class="nb-class-decl">{tok}</span>')
+        # Keywords (NetBeans: Blue #0000e6)
         elif tok in JAVA_KEYWORDS:
             out.append(f'<span class="nb-kw">{tok}</span>')
-        elif re.match(JAVA_FIELDS_REGEX, tok):
+        # Fields: accessed via 'this.field' or declared as private/static/final field
+        elif (i >= 2 and tokens[i - 1] == "." and tokens[i - 2] == "this") or (
+            tok.isupper() and len(tok) > 2 and "_" in tok
+        ) or (
+            any(f in esc for f in ["private ", "protected "]) and not "(" in esc and tok not in JAVA_KEYWORDS and tok not in JAVA_COMMON_TYPES
+        ):
             out.append(f'<span class="nb-field">{tok}</span>')
         else:
             out.append(tok)
@@ -55,12 +91,13 @@ def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_p
     Matches NetBeans default Java editor:
     - Green strings (#008000)
     - Purple italic fields (#990066)
+    - Blue keywords (#0000e6)
+    - Bold class declarations
     - Pastel light yellow active line highlight (#fff9e6)
-    - Faint pink vertical column guide line
-    - Gutter fold icons and warning lightbulb hints
+    - Faint pink vertical column guide line (#f3c2c2)
+    - Gutter fold icons, override badge, and warning lightbulb hints
     - Blinking editor cursor on active line
     - Anti-plagiarism dimension jittering
-    - Clean editor viewport cropping without faux web tabs
     """
     if author_tag and start_line == 1 and not code_text.strip().startswith("//"):
         code_text = f"// @author {author_tag}\n" + code_text
@@ -73,7 +110,6 @@ def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_p
     num_lines = len(slice_lines)
     
     if active_line_offset is None:
-        # Default active line at the last line or line with cursor
         active_line_offset = num_lines - 1
 
     gutter_html = ""
@@ -83,12 +119,19 @@ def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_p
         ln = start_line + i
         is_active = (i == active_line_offset)
         has_fold = "{" in raw_line
-        has_hint = ("try" in raw_line or "catch" in raw_line or "printStackTrace" in raw_line)
+        has_hint = ("try" in raw_line or "catch" in raw_line or "printStackTrace" in raw_line or "import " in raw_line)
+        has_override = ("@Override" in raw_line or (i > 0 and "@Override" in slice_lines[i-1]))
         
         # Gutter element
-        hint_icon = '<span class="nb-bulb"></span>' if has_hint else '<span class="nb-nobulb"></span>'
+        if has_override:
+            badge_icon = '<span class="nb-override"></span>'
+        elif has_hint:
+            badge_icon = '<span class="nb-bulb"></span>'
+        else:
+            badge_icon = '<span class="nb-nobulb"></span>'
+            
         fold_icon = '<span class="nb-fold">-</span>' if has_fold else '<span class="nb-nofold"></span>'
-        gutter_html += f'<div class="gutter-row"><span class="nb-ln">{ln}</span>{hint_icon}{fold_icon}</div>'
+        gutter_html += f'<div class="gutter-row"><span class="nb-ln">{ln}</span>{badge_icon}{fold_icon}</div>'
         
         # Code element
         highlighted = highlight_netbeans_java(raw_line, is_active)
@@ -197,6 +240,26 @@ body {{
     background: #f3c2c2;
     z-index: 10;
 }}
+.nb-override {{
+    width: 12px;
+    height: 12px;
+    background: #4caf50;
+    border-radius: 50%;
+    border: 1px solid #2e7d32;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 2px;
+    box-sizing: border-box;
+}}
+.nb-override::after {{
+    content: '';
+    width: 4px;
+    height: 4px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: block;
+}}
 .nb-cursor {{
     display: inline-block;
     width: 1.5px;
@@ -210,7 +273,9 @@ body {{
 .nb-string {{ color: #008000; }}
 .nb-field {{ color: #990066; font-style: italic; }}
 .nb-comment {{ color: #969696; font-style: italic; }}
+.nb-javadoc {{ color: #707070; }}
 .nb-ann {{ color: #404040; }}
+.nb-class-decl {{ font-weight: bold; color: #000000; }}
 </style>
 </head>
 <body>
