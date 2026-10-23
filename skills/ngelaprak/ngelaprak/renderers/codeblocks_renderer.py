@@ -11,7 +11,21 @@ CPP_KEYWORDS = {
     "struct", "class", "public", "private", "protected", "virtual",
     "return", "using", "namespace", "include", "typedef", "sizeof",
     "if", "else", "for", "while", "do", "switch", "case", "break", "continue",
-    "new", "delete", "nullptr", "NULL", "const", "static", "inline"
+    "new", "delete", "nullptr", "NULL", "const", "static", "inline", "size_t",
+    "true", "false"
+}
+
+CPP_STD_IDENTIFIERS = {
+    "std", "vector", "string", "cout", "cin", "endl", "cerr", "pair",
+    "make_pair", "map", "set", "list", "queue", "stack", "deque",
+    "empty", "size", "begin", "end", "push_back", "pop_back", "clear",
+    "length", "c_str", "substr", "find", "getline"
+}
+
+CPP_OPERATORS = {
+    "&lt;&lt;", "&gt;&gt;", "&lt;=", "&gt;=", "==", "!=", "++", "--",
+    "+=", "-=", "*=", "/=", "&amp;&amp;", "||",
+    "=", "+", "-", "*", "/", "&lt;", "&gt;", "!", "&amp;", "|", "%"
 }
 
 def highlight_codeblocks_cpp(line_text):
@@ -19,28 +33,60 @@ def highlight_codeblocks_cpp(line_text):
         return "&nbsp;"
         
     esc = html.escape(line_text)
-    
-    # Preprocessor
     stripped = esc.strip()
-    if stripped.startswith("#include") or stripped.startswith("#define") or stripped.startswith("#ifndef") or stripped.startswith("#endif"):
+    
+    # 1. Comments (Code::Blocks default: slate periwinkle blue #8890b0)
+    if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+        c_idx = -1
+        for marker in ["//", "/*", "*"]:
+            idx = esc.find(marker)
+            if idx != -1 and (c_idx == -1 or idx < c_idx):
+                c_idx = idx
+        if c_idx != -1 and esc[:c_idx].strip() == "":
+            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+            comment = f'<span class="cb-comment">{esc[c_idx:]}</span>'
+            return pre + comment
+
+    # 2. Preprocessor Directives (#include, #define, etc.)
+    if stripped.startswith("#"):
+        # For #define, highlight macro name green and numbers magenta
+        if stripped.startswith("#define"):
+            parts = re.split(r'(\b\d+(?:\.\d+)?\b)', esc)
+            out = []
+            for p in parts:
+                if re.match(r'^\d+(?:\.\d+)?$', p):
+                    out.append(f'<span class="cb-num">{p}</span>')
+                else:
+                    out.append(f'<span class="cb-prep">{p}</span>')
+            return "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
         return f'<span class="cb-prep">{esc}</span>'.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
         
-    # Comments
-    if stripped.startswith("//"):
-        c_idx = esc.find("//")
-        pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-        comment = f'<span class="cb-comment">{esc[c_idx:]}</span>'
-        return pre + comment
-        
-    tokens = re.split(r'(&quot;.*?&quot;|\b\w+\b|[^\w\s])', esc)
+    # 3. Tokenize strings, numbers, operators, words
+    token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+(?:\.\d+)?\b|&lt;&lt;|&gt;&gt;|&lt;=|&gt;=|==|!=|\+\+|--|\+=|-=|\*=|/=|&amp;&amp;|\|\||\b\w+\b|[^\w\s])'
+    tokens = re.split(token_pattern, esc)
     out = []
+    
     for tok in tokens:
         if not tok:
             continue
+        # String literal (Code::Blocks: Blue #0000ff)
         if tok.startswith('&quot;') and tok.endswith('&quot;'):
             out.append(f'<span class="cb-string">{tok}</span>')
+        # Char literal (Code::Blocks: Blue #0000ff)
+        elif tok.startswith("'") and tok.endswith("'"):
+            out.append(f'<span class="cb-string">{tok}</span>')
+        # Numbers / floats (Code::Blocks: Magenta #f000f0)
+        elif re.match(r'^\d+(?:\.\d+)?$', tok):
+            out.append(f'<span class="cb-num">{tok}</span>')
+        # Keywords (Code::Blocks: Bold Dark Blue #0000a0)
         elif tok in CPP_KEYWORDS:
             out.append(f'<span class="cb-kw">{tok}</span>')
+        # Standard library types & functions (Code::Blocks: Bold Green #00a000)
+        elif tok in CPP_STD_IDENTIFIERS:
+            out.append(f'<span class="cb-std">{tok}</span>')
+        # Operators (Code::Blocks: Red #ff0000)
+        elif tok in CPP_OPERATORS:
+            out.append(f'<span class="cb-op">{tok}</span>')
         else:
             out.append(tok)
             
@@ -49,8 +95,21 @@ def highlight_codeblocks_cpp(line_text):
 def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="codeblocks_shot.png", with_cursor=True, author_tag=None):
     """
     Renders an authentic Code::Blocks editor snippet (C/C++).
-    Includes optional blinking cursor, author header, and anti-plagiarism dimension jitter.
+    Faithfully replicates:
+    - Slate periwinkle comments (#8890b0)
+    - Bold navy keywords (#0000a0)
+    - Bold green std identifiers (#00a000)
+    - Bright blue string literals (#0000ff)
+    - Magenta numbers & floats (#f000f0)
+    - Red operators (#ff0000)
+    - Green preprocessor (#00a000)
+    - Signature lime-green modification bar (#00e000)
+    - Fold box margin with connecting guide lines
+    - Authentic Scintilla editor fonts and layout
     """
+    out_path = os.path.abspath(out_path)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
     if author_tag and start_line == 1 and not code_text.strip().startswith("//"):
         code_text = f"// @author {author_tag}\n" + code_text
 
@@ -61,12 +120,22 @@ def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="cod
     slice_lines = all_lines[start_line - 1 : end_line]
     num_lines = len(slice_lines)
     
-    gutter_html = "".join(f'<div class="cb-gutter-row">{start_line + i}</div>' for i in range(num_lines))
+    gutter_rows = []
     code_rows = []
+    
     for i, line in enumerate(slice_lines):
+        ln = start_line + i
+        raw = line.strip()
+        has_fold = ("{" in raw or raw.startswith("/*") or raw.startswith("struct ") or raw.startswith("class ") or (("(" in raw and ")" in raw and "{" in raw)))
+        fold_elem = '<span class="cb-fold-box">-</span>' if has_fold else '<span class="cb-fold-guide"></span>'
+        
+        gutter_rows.append(f'<div class="cb-gutter-row"><span class="cb-ln">{ln}</span><span class="cb-change-bar"></span><span class="cb-fold-cell">{fold_elem}</span></div>')
+        
         highlighted = highlight_codeblocks_cpp(line)
         cursor_elem = '<span class="cb-cursor"></span>' if (i == num_lines - 1 and with_cursor) else ''
         code_rows.append(f'<div class="cb-code-row">{highlighted}{cursor_elem}</div>')
+        
+    gutter_html = "".join(gutter_rows)
     code_html = "".join(code_rows)
 
     temp_html = os.path.abspath(out_path + ".temp.html")
@@ -87,36 +156,82 @@ body {{
     display: flex;
     background: #ffffff;
     font-size: 13.5px;
-    line-height: 19px;
+    line-height: 18px;
     padding: 2px 0;
     user-select: none;
 }}
 .cb-gutter {{
-    background: #f0f0f0;
-    border-right: 1px solid #d0d0d0;
-    padding: 0 8px;
-    text-align: right;
-    color: #444444;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
     user-select: none;
 }}
 .cb-gutter-row {{
-    height: 19px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+}}
+.cb-ln {{
     font-size: 12px;
+    color: #2b2b2b;
+    padding-left: 6px;
+    padding-right: 6px;
+    min-width: 24px;
+    text-align: right;
+    font-family: 'Consolas', 'Courier New', monospace;
+}}
+.cb-change-bar {{
+    width: 4px;
+    height: 18px;
+    background: #00e000;
+    display: inline-block;
+}}
+.cb-fold-cell {{
+    width: 16px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}}
+.cb-fold-box {{
+    width: 9px;
+    height: 9px;
+    border: 1px solid #7a7a7a;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    line-height: 8px;
+    color: #333333;
+    font-family: monospace;
+    z-index: 2;
+}}
+.cb-fold-guide {{
+    width: 1px;
+    height: 18px;
+    background: #c8c8c8;
+    display: block;
 }}
 .cb-code-area {{
     background: #ffffff;
-    padding-left: 8px;
-    padding-right: 28px;
+    padding-left: 6px;
+    padding-right: 32px;
     color: #000000;
     white-space: nowrap;
 }}
 .cb-code-row {{
-    height: 19px;
+    height: 18px;
 }}
+/* Syntax Tokens matching authentic Code::Blocks screenshot */
 .cb-kw {{ color: #0000a0; font-weight: bold; }}
-.cb-prep {{ color: #008000; font-weight: normal; }}
-.cb-string {{ color: #a00000; }}
-.cb-comment {{ color: #008000; font-style: italic; }}
+.cb-std {{ color: #00a000; font-weight: bold; }}
+.cb-prep {{ color: #00a000; }}
+.cb-string {{ color: #0000ff; }}
+.cb-num {{ color: #f000f0; }}
+.cb-op {{ color: #ff0000; }}
+.cb-comment {{ color: #8890b0; }}
 .cb-cursor {{
     display: inline-block;
     width: 1.5px;
