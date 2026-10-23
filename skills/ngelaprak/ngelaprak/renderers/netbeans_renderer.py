@@ -27,6 +27,9 @@ def highlight_netbeans_java(line_text, is_active=False):
     esc = html.escape(line_text)
     stripped = esc.strip()
     
+    def safe_space(s):
+        return s.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+
     # 1. Javadoc / Multi-line Comment
     if stripped.startswith("/**") or stripped.startswith("/*") or stripped.startswith("*"):
         c_idx = -1
@@ -35,15 +38,15 @@ def highlight_netbeans_java(line_text, is_active=False):
             if idx != -1 and (c_idx == -1 or idx < c_idx):
                 c_idx = idx
         if c_idx != -1 and esc[:c_idx].strip() == "":
-            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-            comment = f'<span class="nb-javadoc">{esc[c_idx:]}</span>'
+            pre = safe_space(esc[:c_idx])
+            comment = f'<span class="nb-javadoc">{safe_space(esc[c_idx:])}</span>'
             return pre + comment
 
     # 2. Single-line Comment
     if stripped.startswith("//"):
         c_idx = esc.find("//")
-        pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-        comment = f'<span class="nb-comment">{esc[c_idx:]}</span>'
+        pre = safe_space(esc[:c_idx])
+        comment = f'<span class="nb-comment">{safe_space(esc[c_idx:])}</span>'
         return pre + comment
 
     # 3. Class declaration: highlight class name bold
@@ -59,31 +62,30 @@ def highlight_netbeans_java(line_text, is_active=False):
             continue
         # String literal (NetBeans: Green #008000)
         if tok.startswith('&quot;') and tok.endswith('&quot;'):
-            out.append(f'<span class="nb-string">{tok}</span>')
+            out.append(f'<span class="nb-string">{safe_space(tok)}</span>')
         # Char literal (NetBeans: Green #008000)
         elif tok.startswith("'") and tok.endswith("'"):
-            out.append(f'<span class="nb-string">{tok}</span>')
+            out.append(f'<span class="nb-string">{safe_space(tok)}</span>')
         # Annotation (NetBeans: Dark Grey #404040)
         elif tok.startswith("@"):
-            out.append(f'<span class="nb-ann">{tok}</span>')
+            out.append(f'<span class="nb-ann">{safe_space(tok)}</span>')
         # Class declaration name (NetBeans: Bold Black)
         elif class_name and tok == class_name:
-            out.append(f'<span class="nb-class-decl">{tok}</span>')
+            out.append(f'<span class="nb-class-decl">{safe_space(tok)}</span>')
         # Keywords (NetBeans: Blue #0000e6)
         elif tok in JAVA_KEYWORDS:
-            out.append(f'<span class="nb-kw">{tok}</span>')
+            out.append(f'<span class="nb-kw">{safe_space(tok)}</span>')
         # Fields: accessed via 'this.field' or declared as private/static/final field
         elif (i >= 2 and tokens[i - 1] == "." and tokens[i - 2] == "this") or (
             tok.isupper() and len(tok) > 2 and "_" in tok
         ) or (
             any(f in esc for f in ["private ", "protected "]) and not "(" in esc and tok not in JAVA_KEYWORDS and tok not in JAVA_COMMON_TYPES
         ):
-            out.append(f'<span class="nb-field">{tok}</span>')
+            out.append(f'<span class="nb-field">{safe_space(tok)}</span>')
         else:
-            out.append(tok)
+            out.append(safe_space(tok))
             
-    res = "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-    return res
+    return "".join(out)
 
 def render_netbeans_code(filename, code_text, start_line=1, end_line=None, out_path="netbeans_shot.png", active_line_offset=None, with_margin_guide=True, with_cursor=True, author_tag=None):
     """

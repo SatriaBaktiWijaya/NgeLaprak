@@ -37,6 +37,8 @@ PYTHON_FUNCS = {
 def highlight_vscode_line(line_text, is_dark=True):
     if not line_text.strip():
         return "&nbsp;"
+    def safe_space(s):
+        return s.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
         
     esc = html.escape(line_text)
     stripped = esc.strip()
@@ -51,13 +53,13 @@ def highlight_vscode_line(line_text, is_dark=True):
     if comment_char:
         c_idx = esc.find(comment_char)
         if esc[:c_idx].strip() == "":
-            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-            comment = f'<span class="vsc-comment">{esc[c_idx:]}</span>'
+            pre = safe_space(esc[:c_idx])
+            comment = f'<span class="vsc-comment">{safe_space(esc[c_idx:])}</span>'
             return pre + comment
 
     # 2. Decorators (@property, @staticmethod)
     if stripped.startswith("@"):
-        return f'<span class="vsc-decorator">{esc}</span>'.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+        return f'<span class="vsc-decorator">{safe_space(esc)}</span>'
 
     # 3. Tokenize strings, numbers, words, and symbols
     token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+(?:\.\d+)?\b|\b\w+\b|[^\w\s])'
@@ -69,32 +71,32 @@ def highlight_vscode_line(line_text, is_dark=True):
             continue
         # String literal (VS Code: Orange #ce9178)
         if (tok.startswith('&quot;') and tok.endswith('&quot;')) or (tok.startswith("'") and tok.endswith("'")):
-            out.append(f'<span class="vsc-string">{tok}</span>')
+            out.append(f'<span class="vsc-string">{safe_space(tok)}</span>')
         # Number literal (VS Code: Light Green #b5cea8)
         elif re.match(r'^\d+(?:\.\d+)?$', tok):
-            out.append(f'<span class="vsc-number">{tok}</span>')
+            out.append(f'<span class="vsc-number">{safe_space(tok)}</span>')
         # Control flow & imports (VS Code: Magenta #c586c0)
         elif tok in PYTHON_CONTROL_KEYWORDS:
-            out.append(f'<span class="vsc-control">{tok}</span>')
+            out.append(f'<span class="vsc-control">{safe_space(tok)}</span>')
         # Definition keywords (VS Code: Blue #569cd6)
         elif tok in PYTHON_DEF_KEYWORDS:
-            out.append(f'<span class="vsc-keyword">{tok}</span>')
+            out.append(f'<span class="vsc-keyword">{safe_space(tok)}</span>')
         # Constants True/False/None (VS Code: Blue #569cd6)
         elif tok in PYTHON_CONSTANTS or tok in PYTHON_SELF:
-            out.append(f'<span class="vsc-constant">{tok}</span>')
+            out.append(f'<span class="vsc-constant">{safe_space(tok)}</span>')
         # Known Types, Modules, and Exceptions (VS Code: Teal #4ec9b0)
         elif tok in PYTHON_TYPES or (i > 0 and tokens[i-1] in ["class", ":", "-&gt;"]):
-            out.append(f'<span class="vsc-type">{tok}</span>')
+            out.append(f'<span class="vsc-type">{safe_space(tok)}</span>')
         # Function definitions or calls (VS Code: Yellow #dcdcaa)
         elif tok in PYTHON_FUNCS or (i + 1 < len(tokens) and tokens[i + 1] == "(") or (i > 1 and tokens[i-2] == "def"):
-            out.append(f'<span class="vsc-func">{tok}</span>')
+            out.append(f'<span class="vsc-func">{safe_space(tok)}</span>')
         # General variables / identifiers (VS Code: Light Blue #9cdcfe)
         elif re.match(r'^[a-zA-Z_]\w*$', tok):
-            out.append(f'<span class="vsc-var">{tok}</span>')
+            out.append(f'<span class="vsc-var">{safe_space(tok)}</span>')
         else:
-            out.append(tok)
+            out.append(safe_space(tok))
             
-    return "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+    return "".join(out)
 
 def render_vscode_code(
     code_text,

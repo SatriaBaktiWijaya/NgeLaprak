@@ -35,6 +35,9 @@ def highlight_codeblocks_cpp(line_text):
     esc = html.escape(line_text)
     stripped = esc.strip()
     
+    def safe_space(s):
+        return s.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+    
     # 1. Comments (Code::Blocks default: slate periwinkle blue #8890b0)
     if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
         c_idx = -1
@@ -43,8 +46,8 @@ def highlight_codeblocks_cpp(line_text):
             if idx != -1 and (c_idx == -1 or idx < c_idx):
                 c_idx = idx
         if c_idx != -1 and esc[:c_idx].strip() == "":
-            pre = esc[:c_idx].replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-            comment = f'<span class="cb-comment">{esc[c_idx:]}</span>'
+            pre = safe_space(esc[:c_idx])
+            comment = f'<span class="cb-comment">{safe_space(esc[c_idx:])}</span>'
             return pre + comment
 
     # 2. Preprocessor Directives (#include, #define, etc.)
@@ -55,11 +58,11 @@ def highlight_codeblocks_cpp(line_text):
             out = []
             for p in parts:
                 if re.match(r'^\d+(?:\.\d+)?$', p):
-                    out.append(f'<span class="cb-num">{p}</span>')
+                    out.append(f'<span class="cb-num">{safe_space(p)}</span>')
                 else:
-                    out.append(f'<span class="cb-prep">{p}</span>')
-            return "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
-        return f'<span class="cb-prep">{esc}</span>'.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+                    out.append(f'<span class="cb-prep">{safe_space(p)}</span>')
+            return "".join(out)
+        return f'<span class="cb-prep">{safe_space(esc)}</span>'
         
     # 3. Tokenize strings, numbers, operators, words
     token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+(?:\.\d+)?\b|&lt;&lt;|&gt;&gt;|&lt;=|&gt;=|==|!=|\+\+|--|\+=|-=|\*=|/=|&amp;&amp;|\|\||\b\w+\b|[^\w\s])'
@@ -71,26 +74,26 @@ def highlight_codeblocks_cpp(line_text):
             continue
         # String literal (Code::Blocks: Blue #0000ff)
         if tok.startswith('&quot;') and tok.endswith('&quot;'):
-            out.append(f'<span class="cb-string">{tok}</span>')
+            out.append(f'<span class="cb-string">{safe_space(tok)}</span>')
         # Char literal (Code::Blocks: Blue #0000ff)
         elif tok.startswith("'") and tok.endswith("'"):
-            out.append(f'<span class="cb-string">{tok}</span>')
+            out.append(f'<span class="cb-string">{safe_space(tok)}</span>')
         # Numbers / floats (Code::Blocks: Magenta #f000f0)
         elif re.match(r'^\d+(?:\.\d+)?$', tok):
-            out.append(f'<span class="cb-num">{tok}</span>')
+            out.append(f'<span class="cb-num">{safe_space(tok)}</span>')
         # Keywords (Code::Blocks: Bold Dark Blue #0000a0)
         elif tok in CPP_KEYWORDS:
-            out.append(f'<span class="cb-kw">{tok}</span>')
+            out.append(f'<span class="cb-kw">{safe_space(tok)}</span>')
         # Standard library types & functions (Code::Blocks: Bold Green #00a000)
         elif tok in CPP_STD_IDENTIFIERS:
-            out.append(f'<span class="cb-std">{tok}</span>')
+            out.append(f'<span class="cb-std">{safe_space(tok)}</span>')
         # Operators (Code::Blocks: Red #ff0000)
         elif tok in CPP_OPERATORS:
-            out.append(f'<span class="cb-op">{tok}</span>')
+            out.append(f'<span class="cb-op">{safe_space(tok)}</span>')
         else:
-            out.append(tok)
+            out.append(safe_space(tok))
             
-    return "".join(out).replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+    return "".join(out)
 
 def render_codeblocks_code(code_text, start_line=1, end_line=None, out_path="codeblocks_shot.png", with_cursor=True, author_tag=None):
     """
