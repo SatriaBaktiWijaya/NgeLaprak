@@ -137,11 +137,14 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
    - Periksa apakah mahasiswa telah menaruh screenshot asli di `Laprak/screenshots/`. Jika ada, gunakan file tersebut.
 
 2. **Prioritas 2 - Generator Otomatis IDE Otentik (`ngelaprak.renderers`)**:
-   - Jika screenshot manual tidak tersedia, gunakan generator bawaan `ngelaprak` yang menghasilkan tampilan **100% menyerupai editor asli**:
-     - **Java / NetBeans (`netbeans_renderer.py`)**:
-       - String literal berwarna hijau (`#008000`), static/field ungu miring (`#990066`), baris aktif pastel (`#fff9e6`), gutter nomor baris dengan hint bulb.
+   - Jika screenshot manual tidak tersedia, gunakan generator bawaan `ngelaprak` yang memakai engine native IDE asli (`view="editor"` atau `view="full"`):
+     - **Java / Apache NetBeans (`netbeans_renderer.py` + `NetBeansNativeRenderer.java`)**:
+       - Engine Java2D `LCD_HRGB` + `javac` Compiler Tree API (semantic resolution akurat untuk field non-static/static, pemanggilan method static miring, Javadoc `@tag` & HTML `<tag>`, fold box, dan badge `@Override`).
+       - Tema modern **FlatLaf Light** resmi Apache NetBeans 31 (keywords biru `#336BDD`, string hijau `#1E9347`, komentar abu `#969696`, field ungu-pink `#CE54B8`, gutter `#E9E8E2`, baris aktif krem `#F9F4E0`, margin guide `#FFD4D4`).
+       - Mendukung `view="editor"` (potongan kode) maupun `view="full"` (jendela lengkap Swing + FlatLightLaf + ikon SVG/PNG resmi JAR NetBeans).
      - **C / C++ / Code::Blocks (`codeblocks_renderer.py`)**:
-       - Font Consolas monospace khas Code::Blocks, gutter nomor baris abu-abu, keywords biru tua, include hijau, strings merah.
+       - Engine **native `wxScintilla` + Win32 GDI** dengan aturan `lexer_cpp.xml` resmi Code::Blocks (font Courier New 10pt, green changebar, marker fold `[-]` Scintilla, literal `char` oranye `(224,160,0)`, preprocessor hijau).
+       - Mendukung `view="editor"` (area editor + gutter) maupun `view="full"` (jendela lengkap Code::Blocks `wx.Frame` + `wx.aui` + ikon toolbar resmi `resources.zip`/`compiler.zip`).
      - **Python / Web / VS Code (`vscode_renderer.py`)**:
        - **DEFAULT: Tema Gelap (Dark+ / Dark Modern)** dengan editor background `#1e1e1e`, tab bar aktif dengan ikon bahasa dan tombol close, breadcrumb navigasi, gutter abu-abu `#858585`, serta syntax highlighting otentik (keywords biru `#569cd6`, control flow magenta `#c586c0`, string oranye `#ce9178`, angka `#b5cea8`, fungsi `#dcdcaa`, komentar `#6a9955`).
        - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
@@ -280,9 +283,11 @@ python -m ngelaprak analyze
 python -m ngelaprak init --lang java
 python -m ngelaprak init --lang cpp
 
-# Render screenshot IDE otentik
-python -m ngelaprak render --ide netbeans --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
-python -m ngelaprak render --ide codeblocks --file Code/main.cpp --out Laprak/screenshots/code1.png
+# Render screenshot IDE otentik (mode potongan editor / jendela IDE penuh)
+python -m ngelaprak render --ide netbeans --view editor --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
+python -m ngelaprak render --ide netbeans --view full --project KasirApp --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main_full.png
+python -m ngelaprak render --ide codeblocks --view editor --file Code/main.cpp --out Laprak/screenshots/code1.png
+python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file Code/main.cpp --out Laprak/screenshots/code1_full.png
 
 # Simulasi & render output CLI interaktif mahasiswa (multi-step input)
 python -m ngelaprak simulate-cli --type stack --out Laprak/screenshots/cli_interactive.png

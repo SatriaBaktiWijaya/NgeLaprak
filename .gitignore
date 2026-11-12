@@ -49,3 +49,5 @@ scratch/
 .agents/
 skills-lock.json
 tests/test_outputs/
+nb_bin/
+*.class

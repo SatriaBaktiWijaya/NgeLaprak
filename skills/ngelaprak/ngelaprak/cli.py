@@ -16,6 +16,12 @@ def format_context_summary(ctx):
     out.append(f"  * Modul Target  : {ctx.get('target_module_title')}")
     if ctx.get('student_name') or ctx.get('student_nim'):
         out.append(f"  * Mahasiswa     : {ctx.get('student_name')} ({ctx.get('student_nim')})")
+    if ctx.get('kampus'):
+        out.append(f"  * Kampus/Univ   : {ctx.get('kampus')}")
+    if ctx.get('prodi') or ctx.get('fakultas'):
+        prodi_txt = ctx.get('prodi', '')
+        fak_txt = f" ({ctx.get('fakultas')})" if ctx.get('fakultas') else ""
+        out.append(f"  * Prodi/Fakultas: {prodi_txt}{fak_txt}")
     if ctx.get('asisten'):
         out.append(f"  * Asisten Lab   : {', '.join(ctx.get('asisten')[:2])}")
     out.append(f"  * Bahasa / IDE  : {ctx.get('language')} -> {ctx.get('recommended_ide')}")
@@ -49,10 +55,23 @@ def main():
     # Command: render
     parser_render = subparsers.add_parser("render", help="Render screenshot kode IDE otentik")
     parser_render.add_argument("--ide", choices=["netbeans", "codeblocks", "vscode", "database"], default="netbeans", help="Target IDE")
+    parser_render.add_argument("--theme", choices=["dark", "light"], default="dark", help="Tema editor (khusus VS Code: default dark)")
+    parser_render.add_argument("--view", choices=["editor", "full"], default="editor", help="Tampilan: editor (potongan kode) atau full (jendela IDE penuh)")
+    parser_render.add_argument("--project", default="ProjekPraktikum", help="Nama project untuk --view full")
+    parser_render.add_argument("--filename", default=None, help="Override nama file di tab/explorer")
     parser_render.add_argument("--file", required=True, help="File kode sumber")
     parser_render.add_argument("--out", default="screenshot.png", help="Path output gambar")
     parser_render.add_argument("--start", type=int, default=1, help="Baris awal")
     parser_render.add_argument("--end", type=int, default=None, help="Baris akhir")
+
+    # Command: simulate-cli
+    parser_sim = subparsers.add_parser("simulate-cli", help="Simulasi dan render screenshot terminal interaktif (multi-step input)")
+    parser_sim.add_argument("--type", choices=["stack", "queue", "crud", "tree", "sorting"], default="stack", help="Jenis skenario simulasi praktikum")
+    parser_sim.add_argument("--title", default=None, help="Judul program")
+    parser_sim.add_argument("--name", default="Satria Bakti Wijaya", help="Nama mahasiswa")
+    parser_sim.add_argument("--nim", default="109092500017", help="NIM mahasiswa")
+    parser_sim.add_argument("--dir", default=r"D:\COOLYEAH\Semester 3\Praktikum", help="Prompt direktori terminal")
+    parser_sim.add_argument("--out", default="screenshot_cli.png", help="Path gambar output")
 
     # Command: export-pdf
     parser_pdf = subparsers.add_parser("export-pdf", help="Ekspor berkas DOCX ke PDF")
@@ -124,20 +143,63 @@ def main():
         print(format_context_summary(ctx))
 
     elif args.command == "render":
-        from ngelaprak.renderers import render_netbeans_code, render_codeblocks_code, render_vscode_code, render_database_view
-        with open(args.file, "r", encoding="utf-8", errors="ignore") as f:
+        from ngelaprak.renderers import render_netbeans_code, render_codeblocks_code, render_vscode_code, render_database_query
+        abs_file = os.path.abspath(args.file)
+        with open(abs_file, "r", encoding="utf-8", errors="ignore") as f:
             content = f.read()
-            
-        fname = os.path.basename(args.file)
+
+        fname = args.filename or os.path.basename(abs_file)
+        file_dir = os.path.dirname(abs_file)
+        exts = (".java",) if args.ide == "netbeans" else (".cpp", ".c", ".cc", ".h", ".hpp")
+        siblings = sorted(n for n in os.listdir(file_dir) if n.lower().endswith(exts))[:8] if os.path.isdir(file_dir) else [fname]
+        extra_files = [fname] + [s for s in siblings if s != fname]
+
+        sourcepath = None
+        norm_dir = file_dir.replace("\\", "/")
+        marker = "/src/main/java"
+        if marker in norm_dir:
+            sourcepath = file_dir[: norm_dir.index(marker) + len(marker)]
+
         if args.ide == "netbeans":
-            render_netbeans_code(fname, content, start_line=args.start, end_line=args.end, out_path=args.out)
+            render_netbeans_code(
+                fname,
+                content,
+                start_line=args.start,
+                end_line=args.end,
+                out_path=args.out,
+                view=args.view,
+                project_name=args.project,
+                extra_files=extra_files,
+                sourcepath=sourcepath,
+            )
         elif args.ide == "codeblocks":
-            render_codeblocks_code(content, start_line=args.start, end_line=args.end, out_path=args.out)
+            render_codeblocks_code(
+                content,
+                start_line=args.start,
+                end_line=args.end,
+                out_path=args.out,
+                view=args.view,
+                filename=fname,
+                project_name=args.project,
+                extra_files=extra_files,
+            )
         elif args.ide == "vscode":
-            render_vscode_code(content, start_line=args.start, end_line=args.end, out_path=args.out)
+            render_vscode_code(content, filename=fname, theme=args.theme, start_line=args.start, end_line=args.end, out_path=args.out)
         elif args.ide == "database":
-            render_database_view(query=content, out_path=args.out)
-        print(f"[NgeLaprak] Screenshot {args.ide} berhasil disimpan ke: {args.out}")
+            render_database_query(query_sql=content, columns=["id", "result"], rows=[[1, "Success"]], out_path=args.out)
+        print(f"[NgeLaprak] Screenshot {args.ide} ({args.view}) berhasil disimpan ke: {args.out}")
+
+    elif args.command == "simulate-cli":
+        from ngelaprak.core.cli_simulator import render_interactive_session_to_image
+        out_shot = render_interactive_session_to_image(
+            prompt_dir=args.dir,
+            scenario_type=args.type,
+            out_path=args.out,
+            program_title=args.title,
+            student_name=args.name,
+            student_nim=args.nim
+        )
+        print(f"[NgeLaprak] Screenshot CLI interaktif ({args.type}) berhasil disimpan ke: {out_shot}")
 
     elif args.command == "export-pdf":
         from ngelaprak.core import export_docx_to_pdf
