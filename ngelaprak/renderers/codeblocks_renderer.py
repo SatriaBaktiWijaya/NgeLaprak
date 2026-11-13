@@ -5,10 +5,41 @@ import ctypes
 from ctypes import wintypes
 import xml.etree.ElementTree as ET
 import random
-import wx
-import wx.stc as stc
-import wx.aui as aui
-from PIL import Image
+import subprocess
+import html
+import re
+import shutil
+from PIL import Image, ImageChops
+
+try:
+    import wx
+    import wx.stc as stc
+    import wx.aui as aui
+    HAS_WX = True
+except (ImportError, ModuleNotFoundError):
+    HAS_WX = False
+
+    class _WxDummy:
+        class App:
+            def __init__(self, *args, **kwargs): pass
+            def MainLoop(self): pass
+        class Bitmap:
+            def __init__(self, *args, **kwargs): pass
+        class Image:
+            def __init__(self, *args, **kwargs): pass
+            def IsOk(self): return False
+        class Font:
+            def __init__(self, *args, **kwargs): pass
+        class Colour:
+            def __init__(self, *args, **kwargs): pass
+        @staticmethod
+        def GetApp(): return None
+        @staticmethod
+        def CallLater(*args, **kwargs): pass
+
+    wx = _WxDummy()
+    stc = None
+    aui = None
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(2)
@@ -19,6 +50,13 @@ CODEBLOCKS_SHARE_DIR = r"C:\Program Files\CodeBlocks\share\CodeBlocks"
 CODEBLOCKS_LEXER_XML = os.path.join(CODEBLOCKS_SHARE_DIR, "lexers", "lexer_cpp.xml")
 CODEBLOCKS_RES_ZIP = os.path.join(CODEBLOCKS_SHARE_DIR, "resources.zip")
 CODEBLOCKS_COMPILER_ZIP = os.path.join(CODEBLOCKS_SHARE_DIR, "compiler.zip")
+
+CHROME_CANDIDATES = [
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+]
 
 FALLBACK_STYLES = [
     {"indices": [0, 11], "fg": (0, 0, 0), "bg": (255, 255, 255), "bold": False, "italics": False, "underlined": False},
@@ -39,6 +77,331 @@ FALLBACK_KEYWORDS = {
     0: "alignas alignof asm auto bool break case catch char char16_t char32_t class const const_cast constexpr continue decltype default delete do double dynamic_cast else enum explicit export extern false final float for friend goto if inline int long mutable namespace new noexcept nullptr operator override private protected public register reinterpret_cast return short signed sizeof static static_assert static_cast struct switch template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while size_t time_t",
     1: "std vector string cout cin endl cerr pair make_pair map set list queue stack deque empty size begin end push_back pop_back clear length c_str substr find getline iostream fstream sstream algorithm cmath cstdio cstdlib cstring iomanip",
 }
+
+CPP_KEYWORDS = {
+    "alignas", "alignof", "asm", "auto", "bool", "break", "case", "catch",
+    "char", "char16_t", "char32_t", "class", "const", "const_cast", "constexpr",
+    "continue", "decltype", "default", "delete", "do", "double", "dynamic_cast",
+    "else", "enum", "explicit", "export", "extern", "false", "final", "float",
+    "for", "friend", "goto", "if", "inline", "int", "long", "mutable", "namespace",
+    "new", "noexcept", "nullptr", "operator", "override", "private", "protected",
+    "public", "register", "reinterpret_cast", "return", "short", "signed",
+    "sizeof", "static", "static_assert", "static_cast", "struct", "switch",
+    "template", "this", "thread_local", "throw", "true", "try", "typedef",
+    "typeid", "typename", "union", "unsigned", "using", "virtual", "void",
+    "volatile", "wchar_t", "while", "size_t", "time_t"
+}
+
+CPP_STD_IDENTIFIERS = {
+    "std", "vector", "string", "cout", "cin", "endl", "cerr", "pair",
+    "make_pair", "map", "set", "list", "queue", "stack", "deque",
+    "empty", "size", "begin", "end", "push_back", "pop_back", "clear",
+    "length", "c_str", "substr", "find", "getline", "iostream", "fstream",
+    "sstream", "algorithm", "cmath", "cstdio", "cstdlib", "cstring", "iomanip"
+}
+
+CPP_OPERATORS = {
+    "&lt;&lt;", "&gt;&gt;", "&lt;=", "&gt;=", "==", "!=", "++", "--",
+    "+=", "-=", "*=", "/=", "&amp;&amp;", "||",
+    "=", "+", "-", "*", "/", "&lt;", "&gt;", "!", "&amp;", "|", "%"
+}
+
+
+def _find_browser_bin():
+    for p in CHROME_CANDIDATES:
+        if os.path.exists(p):
+            return p
+    for cmd in ("chrome", "google-chrome", "msedge", "chromium"):
+        which = shutil.which(cmd)
+        if which:
+            return which
+    return None
+
+
+def highlight_codeblocks_cpp(line_text):
+    if not line_text.strip():
+        return "&nbsp;"
+
+    esc = html.escape(line_text)
+    stripped = esc.strip()
+
+    def safe_space(s):
+        return s.replace(" ", "&nbsp;").replace("\t", "&nbsp;&nbsp;&nbsp;&nbsp;")
+
+    # 1. Comments
+    if stripped.startswith("//") or stripped.startswith("/*") or stripped.startswith("*"):
+        c_idx = -1
+        for marker in ["//", "/*", "*"]:
+            idx = esc.find(marker)
+            if idx != -1 and (c_idx == -1 or idx < c_idx):
+                c_idx = idx
+        if c_idx != -1 and esc[:c_idx].strip() == "":
+            pre = safe_space(esc[:c_idx])
+            comment = f'<span class="cb-comment">{safe_space(esc[c_idx:])}</span>'
+            return pre + comment
+
+    # 2. Preprocessor Directives (#include, #define, etc.)
+    if stripped.startswith("#"):
+        if stripped.startswith("#define"):
+            parts = re.split(r'(\b\d+(?:\.\d+)?\b)', esc)
+            out = []
+            for p in parts:
+                if re.match(r'^\d+(?:\.\d+)?$', p):
+                    out.append(f'<span class="cb-num">{safe_space(p)}</span>')
+                else:
+                    out.append(f'<span class="cb-prep">{safe_space(p)}</span>')
+            return "".join(out)
+        return f'<span class="cb-prep">{safe_space(esc)}</span>'
+
+    # 3. Tokenize strings, numbers, operators, words
+    token_pattern = r'(&quot;.*?&quot;|\'.*?\'|\b\d+(?:\.\d+)?\b|&lt;&lt;|&gt;&gt;|&lt;=|&gt;=|==|!=|\+\+|--|\+=|-=|\*=|/=|&amp;&amp;|\|\||\b\w+\b|[^\w\s])'
+    tokens = re.split(token_pattern, esc)
+    out = []
+
+    for tok in tokens:
+        if not tok:
+            continue
+        if tok.startswith('&quot;') and tok.endswith('&quot;'):
+            out.append(f'<span class="cb-string">{safe_space(tok)}</span>')
+        elif tok.startswith("'") and tok.endswith("'"):
+            out.append(f'<span class="cb-string">{safe_space(tok)}</span>')
+        elif re.match(r'^\d+(?:\.\d+)?$', tok):
+            out.append(f'<span class="cb-num">{safe_space(tok)}</span>')
+        elif tok in CPP_KEYWORDS:
+            out.append(f'<span class="cb-kw">{safe_space(tok)}</span>')
+        elif tok in CPP_STD_IDENTIFIERS:
+            out.append(f'<span class="cb-std">{safe_space(tok)}</span>')
+        elif tok in CPP_OPERATORS:
+            out.append(f'<span class="cb-op">{safe_space(tok)}</span>')
+        else:
+            out.append(safe_space(tok))
+
+    return "".join(out)
+
+
+def _render_codeblocks_fallback(
+    code_text,
+    start_line=1,
+    end_line=None,
+    out_path="codeblocks_shot.png",
+    with_cursor=True,
+    author_tag=None,
+    view="editor",
+    filename="main.cpp",
+    project_name="ProjekPraktikum",
+    extra_files=None,
+):
+    browser_bin = _find_browser_bin()
+    if not browser_bin:
+        raise RuntimeError(
+            "wxPython is not installed and no headless browser (Chrome/Edge) was found for Code::Blocks rendering."
+        )
+
+    out_path = os.path.abspath(out_path)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+    if author_tag and start_line == 1 and not code_text.strip().startswith("//"):
+        code_text = f"// @author {author_tag}\n" + code_text
+
+    all_lines = code_text.splitlines() or [""]
+    if end_line is None or end_line > len(all_lines):
+        end_line = len(all_lines)
+
+    slice_lines = all_lines[start_line - 1 : end_line]
+    if not slice_lines:
+        slice_lines = [""]
+    num_lines = len(slice_lines)
+
+    gutter_rows = []
+    code_rows = []
+
+    for i, line in enumerate(slice_lines):
+        ln = start_line + i
+        raw = line.strip()
+        has_fold = ("{" in raw or raw.startswith("/*") or raw.startswith("struct ") or raw.startswith("class ") or (("(" in raw and ")" in raw and "{" in raw)))
+        fold_elem = '<span class="cb-fold-box">-</span>' if has_fold else '<span class="cb-fold-guide"></span>'
+
+        gutter_rows.append(f'<div class="cb-gutter-row"><span class="cb-ln">{ln}</span><span class="cb-change-bar"></span><span class="cb-fold-cell">{fold_elem}</span></div>')
+
+        highlighted = highlight_codeblocks_cpp(line)
+        cursor_elem = '<span class="cb-cursor"></span>' if (i == num_lines - 1 and with_cursor) else ''
+        code_rows.append(f'<div class="cb-code-row">{highlighted}{cursor_elem}</div>')
+
+    gutter_html = "".join(gutter_rows)
+    code_html = "".join(code_rows)
+
+    temp_html = os.path.abspath(out_path + ".temp.html")
+    is_full = (view == "full")
+    min_editor_w = 960 if is_full else 480
+    min_editor_h = 560 if is_full else 120
+
+    html_doc = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body {{
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    font-family: 'Courier New', 'Consolas', monospace;
+    display: inline-block;
+    min-width: {min_editor_w}px;
+    min-height: {min_editor_h}px;
+}}
+.cb-editor {{
+    display: flex;
+    background: #ffffff;
+    font-size: 13.5px;
+    line-height: 18px;
+    padding: 4px 0;
+    user-select: none;
+    min-width: {min_editor_w}px;
+    min-height: {min_editor_h}px;
+}}
+.cb-gutter {{
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    user-select: none;
+}}
+.cb-gutter-row {{
+    height: 18px;
+    display: flex;
+    align-items: center;
+}}
+.cb-ln {{
+    font-size: 12px;
+    color: #2b2b2b;
+    padding-left: 6px;
+    padding-right: 6px;
+    min-width: 24px;
+    text-align: right;
+    font-family: 'Consolas', 'Courier New', monospace;
+}}
+.cb-change-bar {{
+    width: 4px;
+    height: 18px;
+    background: #00e000;
+    display: inline-block;
+}}
+.cb-fold-cell {{
+    width: 16px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}}
+.cb-fold-box {{
+    width: 9px;
+    height: 9px;
+    border: 1px solid #7a7a7a;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    line-height: 8px;
+    color: #333333;
+    font-family: monospace;
+    z-index: 2;
+}}
+.cb-fold-guide {{
+    width: 1px;
+    height: 18px;
+    background: #c8c8c8;
+    display: block;
+}}
+.cb-code-area {{
+    background: #ffffff;
+    padding-left: 6px;
+    padding-right: 32px;
+    color: #000000;
+    white-space: nowrap;
+}}
+.cb-code-row {{
+    height: 18px;
+}}
+.cb-kw {{ color: #0000a0; font-weight: bold; }}
+.cb-std {{ color: #00a000; font-weight: bold; }}
+.cb-prep {{ color: #00a000; }}
+.cb-string {{ color: #0000ff; }}
+.cb-num {{ color: #f000f0; }}
+.cb-op {{ color: #ff0000; }}
+.cb-comment {{ color: #8890b0; }}
+.cb-cursor {{
+    display: inline-block;
+    width: 1.5px;
+    height: 15px;
+    background: #000000;
+    margin-left: 2px;
+    vertical-align: middle;
+}}
+</style>
+</head>
+<body>
+<div class="cb-editor">
+    <div class="cb-gutter">{gutter_html}</div>
+    <div class="cb-code-area">{code_html}</div>
+</div>
+</body>
+</html>"""
+
+    with open(temp_html, "w", encoding="utf-8") as f:
+        f.write(html_doc)
+
+    temp_shot = out_path if not is_full else out_path + ".editor.png"
+    cmd = [
+        browser_bin,
+        "--headless=new",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--force-device-scale-factor=1.5",
+        f"--screenshot={temp_shot}",
+        f"--window-size={1000 if is_full else 1200},{700 if is_full else 1600}",
+        f"file:///{temp_html.replace(os.sep, '/')}"
+    ]
+    subprocess.run(cmd, capture_output=True)
+
+    if os.path.exists(temp_html):
+        try: os.remove(temp_html)
+        except Exception: pass
+
+    if not is_full:
+        if os.path.exists(out_path):
+            im = Image.open(out_path)
+            bg = Image.new(im.mode, im.size, (255, 255, 255))
+            diff = ImageChops.difference(im, bg)
+            bbox = diff.getbbox()
+            if bbox:
+                jitter_w = random.randint(18, 55)
+                jitter_h = random.randint(4, 18)
+                crop_box = (
+                    max(0, bbox[0] - 2),
+                    max(0, bbox[1] - 2),
+                    min(im.width, max(360, bbox[2] + jitter_w)),
+                    min(im.height, max(120, bbox[3] + jitter_h))
+                )
+                im = im.crop(crop_box)
+                im.save(out_path)
+        return out_path
+    else:
+        try:
+            from .gui_framer import frame_windows_gui
+            frame_windows_gui(
+                content_img_path=temp_shot,
+                title_text=f"{filename} [{project_name}] - Code::Blocks 25.03",
+                out_path=out_path,
+                app_icon="codeblocks"
+            )
+            if os.path.exists(temp_shot):
+                try: os.remove(temp_shot)
+                except Exception: pass
+        except Exception:
+            if os.path.exists(temp_shot) and temp_shot != out_path:
+                shutil.move(temp_shot, out_path)
+        return out_path
 
 
 def _parse_cb_lexer_xml(xml_path=CODEBLOCKS_LEXER_XML):
@@ -75,7 +438,7 @@ def _parse_cb_lexer_xml(xml_path=CODEBLOCKS_LEXER_XML):
 
 
 def _load_wx_bitmap_from_zip(zip_path, entry_name):
-    if not os.path.exists(zip_path):
+    if not HAS_WX or not os.path.exists(zip_path):
         return None
     try:
         with zipfile.ZipFile(zip_path, "r") as zf:
@@ -353,7 +716,22 @@ def render_codeblocks_code(
     Renders a 100% pixel-perfect Code::Blocks C/C++ screenshot using native wxScintilla + Win32 GDI
     and official Code::Blocks lexer_cpp.xml styles and folding markers.
     Supports view='editor' (cropped code + gutter) or view='full' (complete native wxWidgets Code::Blocks IDE window).
+    Falls back gracefully when wxPython is not installed.
     """
+    if not HAS_WX:
+        return _render_codeblocks_fallback(
+            code_text=code_text,
+            start_line=start_line,
+            end_line=end_line,
+            out_path=out_path,
+            with_cursor=with_cursor,
+            author_tag=author_tag,
+            view=view,
+            filename=filename,
+            project_name=project_name,
+            extra_files=extra_files,
+        )
+
     out_path = os.path.abspath(out_path)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 
@@ -459,3 +837,41 @@ def render_codeblocks_code(
     wx.CallLater(140, _on_timer)
     app.MainLoop()
     return out_path
+
+
+class CodeBlocksRenderer:
+    """Wrapper class providing CodeBlocksRenderer interface with soft wx fallback."""
+    HAS_WX = HAS_WX
+
+    @staticmethod
+    def render(
+        code_text,
+        start_line=1,
+        end_line=None,
+        out_path="codeblocks_shot.png",
+        with_cursor=True,
+        author_tag=None,
+        view="editor",
+        filename="main.cpp",
+        project_name="ProjekPraktikum",
+        extra_files=None,
+    ):
+        return render_codeblocks_code(
+            code_text=code_text,
+            start_line=start_line,
+            end_line=end_line,
+            out_path=out_path,
+            with_cursor=with_cursor,
+            author_tag=author_tag,
+            view=view,
+            filename=filename,
+            project_name=project_name,
+            extra_files=extra_files,
+        )
+
+
+__all__ = [
+    "render_codeblocks_code",
+    "CodeBlocksRenderer",
+    "HAS_WX",
+]

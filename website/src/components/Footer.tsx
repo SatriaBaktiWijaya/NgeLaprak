@@ -26,7 +26,7 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Quick links */}
-          <div className="flex flex-wrap items-center gap-6 text-xs font-medium text-slate-400">
+          <div className="flex flex-wrap items-center gap-5 text-xs font-medium text-slate-400">
             <a href="#tutorial" className="hover:text-white transition-colors">
               Tutorial
             </a>
@@ -36,8 +36,14 @@ export const Footer: React.FC = () => {
             <a href="#compare" className="hover:text-white transition-colors">
               Before/After
             </a>
+            <a href="#whats-new" className="text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
+              What's New
+            </a>
             <a href="#features" className="hover:text-white transition-colors">
               Fitur
+            </a>
+            <a href="#contributors" className="text-purple-300 hover:text-purple-200 transition-colors">
+              Kontributor
             </a>
             <a
               href="https://saweria.co/satriabaktiwijaya"
@@ -70,7 +76,7 @@ export const Footer: React.FC = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span>Made with</span>
             <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500 inline animate-pulse" />
@@ -81,7 +87,20 @@ export const Footer: React.FC = () => {
               rel="noopener noreferrer"
               className="text-slate-300 hover:text-white font-medium underline underline-offset-2 decoration-indigo-400/50 hover:decoration-indigo-400 transition-colors"
             >
-              Satria
+              Satria Bakti Wijaya
+            </a>
+            <span>&amp;</span>
+            <a
+              href="https://github.com/alexanderfrit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 hover:text-white font-medium underline underline-offset-2 decoration-purple-400/50 hover:decoration-purple-400 transition-colors"
+            >
+              Alexander Frit (Alek)
+            </a>
+            <span className="mx-1 text-slate-700">•</span>
+            <a href="#contributors" className="hover:text-purple-300 transition-colors underline underline-offset-2 decoration-white/20">
+              Kontributor
             </a>
             <span className="mx-1 text-slate-700">•</span>
             <span>MIT License</span>

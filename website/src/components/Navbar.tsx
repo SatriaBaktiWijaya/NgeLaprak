@@ -67,17 +67,21 @@ export const Navbar: React.FC = () => {
               }`}>
                 Nge<span className="text-indigo-400">Laprak</span>
               </span>
-              <span className={`font-mono font-semibold rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/25 tabular-nums transition-all duration-300 ${
-                scrolled ? 'text-[9px] px-1.5 py-0' : 'text-[10px] px-1.5 py-0.5'
-              }`}>
-                v1.2
-              </span>
+              <a
+                href="#whats-new"
+                title="Lihat Pembaruan v1.3 (What's New)"
+                className={`font-mono font-semibold rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 hover:border-emerald-400/50 tabular-nums transition-all duration-300 ${
+                  scrolled ? 'text-[9px] px-1.5 py-0' : 'text-[10px] px-1.5 py-0.5'
+                }`}
+              >
+                v1.3
+              </a>
             </div>
           </a>
 
           {/* Desktop Links (Mathematically Centered) */}
           <nav className={`hidden md:flex items-center font-medium absolute left-1/2 -translate-x-1/2 transition-all duration-300 pointer-events-auto ${
-            scrolled ? 'gap-4 text-[11px] text-slate-300' : 'gap-5 text-xs text-slate-300'
+            scrolled ? 'gap-2.5 lg:gap-4 text-[11px] text-slate-300' : 'gap-3 lg:gap-4.5 text-xs text-slate-300'
           }`}>
             <a href="#tutorial" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Tutorial
@@ -88,8 +92,15 @@ export const Navbar: React.FC = () => {
             <a href="#compare" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Before/After
             </a>
+            <a href="#whats-new" className="hover:text-emerald-300 text-emerald-400/90 transition-colors focus-visible:outline-none focus-visible:text-emerald-300 flex items-center gap-1 font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>What's New</span>
+            </a>
             <a href="#features" className="hover:text-white transition-colors focus-visible:outline-none focus-visible:text-white">
               Fitur
+            </a>
+            <a href="#contributors" className="hover:text-purple-300 transition-colors focus-visible:outline-none focus-visible:text-purple-300">
+              Kontributor
             </a>
           </nav>
 
@@ -173,11 +184,26 @@ export const Navbar: React.FC = () => {
               Before & After
             </a>
             <a
+              href="#whats-new"
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-emerald-300 hover:text-emerald-200 flex items-center gap-2 transition-colors font-bold"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+              <span>What's New (v1.3)</span>
+            </a>
+            <a
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
               className="hover:text-indigo-400 transition-colors"
             >
               Fitur Unggulan
+            </a>
+            <a
+              href="#contributors"
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-purple-300 hover:text-purple-200 transition-colors"
+            >
+              Kontributor Proyek
             </a>
 
             <div className="w-32 h-px bg-white/10 my-2" />

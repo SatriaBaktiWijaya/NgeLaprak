@@ -38,7 +38,7 @@ $userProfile = [System.Environment]::GetFolderPath('UserProfile')
 $globalSkillDir = Join-Path $userProfile ".gemini\config\skills\ngelaprak"
 
 Write-Host ""
-Write-Host "[*] Mendaftarkan skill ke direktori AI Agent: $globalSkillDir" -ForegroundColor Yellow
+Write-Host "[*] Mendaftarkan skill ke direktori AI Agent Global: $globalSkillDir" -ForegroundColor Yellow
 
 if (!(Test-Path $globalSkillDir)) {
     New-Item -ItemType Directory -Path $globalSkillDir -Force | Out-Null
@@ -49,16 +49,35 @@ if ([string]::IsNullOrEmpty($currentDir)) {
     $currentDir = (Get-Location).Path
 }
 
-# Copy SKILL.md
-Copy-Item -Path (Join-Path $currentDir "SKILL.md") -Destination (Join-Path $globalSkillDir "SKILL.md") -Force
+$skillMdSource = Join-Path $currentDir "SKILL.md"
+$pkgSource = Join-Path $currentDir "ngelaprak"
 
-# Copy ngelaprak python package
-$targetPkgDir = Join-Path $globalSkillDir "ngelaprak"
-if (Test-Path $targetPkgDir) {
-    Remove-Item -Recurse -Force $targetPkgDir
+# Copy to globalSkillDir
+Copy-Item -Path $skillMdSource -Destination (Join-Path $globalSkillDir "SKILL.md") -Force
+$globalPkgDir = Join-Path $globalSkillDir "ngelaprak"
+if (Test-Path $globalPkgDir) {
+    Remove-Item -Recurse -Force $globalPkgDir
 }
-Copy-Item -Path (Join-Path $currentDir "ngelaprak") -Destination $targetPkgDir -Recurse -Force
-
+Copy-Item -Path $pkgSource -Destination $globalPkgDir -Recurse -Force
+Get-ChildItem -Path $globalPkgDir -Recurse -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
 Write-Host "[OK] Skill 'ngelaprak' berhasil didaftarkan ke agent secara global!" -ForegroundColor Green
+
+# 4. Install/Update Local Project Skill (.agents\skills\ngelaprak)
+$localSkillDir = Join-Path $currentDir ".agents\skills\ngelaprak"
+if ($currentDir -ne $userProfile -and -not $currentDir.StartsWith((Join-Path $userProfile ".gemini"))) {
+    Write-Host "[*] Mendaftarkan skill ke proyek lokal: $localSkillDir" -ForegroundColor Yellow
+    if (!(Test-Path $localSkillDir)) {
+        New-Item -ItemType Directory -Path $localSkillDir -Force | Out-Null
+    }
+    Copy-Item -Path $skillMdSource -Destination (Join-Path $localSkillDir "SKILL.md") -Force
+    $localPkgDir = Join-Path $localSkillDir "ngelaprak"
+    if (Test-Path $localPkgDir) {
+        Remove-Item -Recurse -Force $localPkgDir
+    }
+    Copy-Item -Path $pkgSource -Destination $localPkgDir -Recurse -Force
+    Get-ChildItem -Path $localPkgDir -Recurse -Filter "__pycache__" -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force
+    Write-Host "[OK] Skill 'ngelaprak' berhasil didaftarkan ke proyek lokal!" -ForegroundColor Green
+}
+
 Write-Host ""
 Write-Host "Sekarang AI Agent Anda sudah bisa otomatis mengerjakan laprak!" -ForegroundColor Cyan

@@ -45,12 +45,18 @@ export const Hero: React.FC = () => {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 relative z-10 text-center">
         {/* Subtle Category Pill */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-slate-300 text-xs font-medium mb-6 backdrop-blur-xl shadow-lg">
+        <a
+          href="#whats-new"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/30 text-slate-300 text-xs font-medium mb-6 backdrop-blur-xl shadow-lg transition-all group cursor-pointer"
+        >
           <NgeLaprakLogo size={16} className="rounded-sm" />
           <span>Universal Agent Skill v1.3</span>
           <span className="w-1 h-1 rounded-full bg-slate-600" />
-          <span className="text-indigo-300 font-mono">Alur Otomatis 2-Berkas</span>
-        </div>
+          <span className="text-emerald-300 font-mono flex items-center gap-1">
+            <span>What's New</span>
+            <span className="text-emerald-400 group-hover:translate-x-0.5 transition-transform">→</span>
+          </span>
+        </a>
 
         {/* Display Headline with Tight Tracking */}
         <h1 className="text-3xl sm:text-5xl md:text-7xl font-extrabold tracking-[-0.035em] text-white mb-6 leading-[1.08] font-sans max-w-4xl mx-auto drop-shadow-[0_4px_24px_rgba(0,0,0,0.8)]">
