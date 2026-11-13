@@ -25,18 +25,52 @@ Dapat digunakan untuk berbagai mata kuliah pemrograman dan informatika:
 * **Pemrograman Web & Mobile**: JavaScript, HTML/CSS, React, Flutter, Python.
 * **Sistem Operasi & Jaringan**: Bash terminal, packet tracing, Linux commands.
 
-### 2. 📸 Engine Screenshot IDE Otentik (Mode Hybrid)
-* **Apache NetBeans (Java)**:
-  * String literal hijau (`#008000`), member variable ungu miring (`#990066`).
-  * Highlight baris kursor aktif krem pastel (`#fff9e6`).
-  * Gutter dengan ikon lampu warning hint dan garis penutup blok kurung kurawal.
-  * Pemandu margin kolom pink di sisi kanan.
-* **Code::Blocks (C/C++)**:
-  * Tampilan font monospace dan penomoran baris khas Code::Blocks.
+### 2. 📸 Engine Screenshot IDE Otentik (Mode Hybrid & Pixel-Perfect Native)
+* **Apache NetBeans 31 (Java - FlatLaf Light)**:
+  * Engine Java2D `LCD_HRGB` + JDK `javac` Compiler Tree API (pewarnaan semantik akurat untuk field, static call miring, Javadoc, dan badge `@Override`).
+  * Tema **FlatLaf Light**: keyword biru (`#336BDD`), string hijau (`#1E9347`), field ungu-pink (`#CE54B8`), gutter (`#E9E8E2`), highlight baris aktif krem (`#F9F4E0`), dan margin guide pink (`#FFD4D4`).
+  * Mendukung potongan editor (`--view editor`) maupun jendela Swing + FlatLaf lengkap (`--view full`) dengan ikon resmi JAR NetBeans.
+* **Code::Blocks 25.03 (C/C++)**:
+  * Engine native **wxScintilla + Win32 GDI** menggunakan `lexer_cpp.xml` resmi Code::Blocks (font Courier New 10pt, green changebar, marker fold Scintilla).
+  * Mendukung `--view editor` maupun `--view full` (`wxWidgets` MenuBar, ToolBar ikon `resources.zip`/`compiler.zip`, Management tree, StatusBar).
 * **VS Code & Windows Terminal**:
   * Dark+ / Light+ theme yang bersih dan konsol native Windows 11 / MySQL client.
 * **Slot Screenshot Manual**:
   * Jika mahasiswa sudah mengambil screenshot sendiri dengan *Snipping Tool*, AI akan otomatis memprioritaskan screenshot asli tersebut.
+
+#### 🔍 Perbandingan Hasil Render (`--view editor`): Sebelum vs Sesudah
+
+Pengujian dilakukan pada cuplikan kode yang sama persis (`KoneksiDB.java` & `main.cpp` dari [examples/generate_samples.py](examples/generate_samples.py)):
+
+##### 1) Apache NetBeans (`--ide netbeans --view editor`)
+
+| Sebelum (`HTML / Chrome Mock`) | Sesudah (`Native Java2D + javac AST + FlatLaf Light`) |
+| :---: | :---: |
+| <img src="docs/images/before_netbeans_editor.png" width="420" /> | <img src="docs/images/after_netbeans_editor.png" width="420" /> |
+
+- **Pewarnaan Semantik Nyata**: Versi lama berbasis regex/HTML gagal mewarnai keyword, string, dan field pada `KoneksiDB.java` (tercetak hitam polos); versi baru memakai **JDK `javac` Compiler Tree API** sehingga membedakan akurat keyword `#336BDD`, string `#1E9347`, static field *italic* `#CE54B8` (`conn`, `url`, `out`, `err`), serta pemanggilan static method *italic* (`getConnection`).
+- **Gutter & Struktur Fold Otentik**: Gutter memakai warna FlatLaf Light `#E9E8E2`, garis konektor fold penuh (hanya pada `import`, `class`, `method`, dan Javadoc — bukan pada `if`/`try`), garis bantu indentasi `#D3D3D3`, pemandu margin kolom 80 `#FFD4D4`, dan subpixel font rasterization Java2D `LCD_HRGB`.
+
+##### 2) Code::Blocks (`--ide codeblocks --view editor`)
+
+| Sebelum (`HTML / Chrome Mock`) | Sesudah (`Native wxScintilla + lexer_cpp.xml`) |
+| :---: | :---: |
+| <img src="docs/images/before_codeblocks_editor.png" width="420" /> | <img src="docs/images/after_codeblocks_editor.png" width="420" /> |
+
+- **Lexer & Rasterizer Asli**: Versi lama menggunakan DOM Chrome sehingga sintaks C++ gagal terwarnai konsisten dan tanpa *changebar*; versi baru merender langsung via komponen **native `wxScintilla` + Win32 GDI** dengan aturan `lexer_cpp.xml` resmi Code::Blocks (`#include` hijau, keyword `#0000A0` bold, `std`/`cout`/`endl` hijau bold, string biru `#0000FF`, literal `char` oranye `(224,160,0)`, green changebar `#00E000`, dan marker fold tree `[-]`).
+
+##### 3) Pratinjau Mode Jendela IDE Penuh (`--view full`)
+
+| Apache NetBeans 31 (`--view full`) | Code::Blocks 25.03 (`--view full`) |
+| :---: | :---: |
+| <img src="docs/images/after_netbeans_full.png" width="420" /> | <img src="docs/images/after_codeblocks_full.png" width="420" /> |
+
+| Aspek | Renderer Lama (HTML/Chrome) | Renderer Baru (Native Engine) |
+| :--- | :--- | :--- |
+| **Java / NetBeans** | Regex tokenizer + CSS di Headless Chrome | **Java2D `LCD_HRGB` + JDK `javac` AST** + Swing `FlatLightLaf` & ikon JAR resmi |
+| **C++ / Code::Blocks** | Regex tokenizer + HTML di Headless Chrome | **wxScintilla + Win32 GDI** membaca `lexer_cpp.xml` & ikon `resources.zip` |
+| **Viewport (`--view`)** | Hanya potongan editor (`editor`) | Mendukung **`--view editor`** dan **`--view full`** (jendela IDE utuh) |
+| **Ketergantungan LLM** | 0 token (CLI deterministik) | 0 token (CLI deterministik, tanpa automasi GUI oleh LLM) |
 
 ### 3. ✍️ Gaya Penulisan Natural Mahasiswa (Anti-AI Cringe)
 * Penjelasan singkat, padat, dan langsung menjelaskan fungsi teknis kode (*to the point*).
@@ -102,7 +136,11 @@ git clone https://github.com/SatriaBaktiWijaya/NgeLaprak.git
 cd NgeLaprak
 .\install.ps1
 ```
-Skrip ini akan otomatis memasang dependensi Python (`python-docx`, `pillow`) dan mendaftarkan skill ke direktori agen global (`~/.gemini/config/skills/ngelaprak`).
+Skrip ini akan otomatis memasang dependensi Python (`python-docx`, `pillow`, `pypdf`, `pdfplumber`, `wxPython`) dan mendaftarkan skill ke direktori agen global (`~/.gemini/config/skills/ngelaprak`).
+
+> **Catatan Prasyarat Renderer Native (Windows):**
+> - **NetBeans Renderer**: Membutuhkan **JDK 17+** (`javac` & `java` di `PATH`) dan opsional instalasi **Apache NetBeans** (untuk `flatlaf-*.jar`, `jsvg-*.jar`, dan ikon SVG/PNG resmi).
+> - **Code::Blocks Renderer**: Membutuhkan **`wxPython`** (`pip install wxPython`) dan opsional instalasi **Code::Blocks** (`lexer_cpp.xml` & ikon `resources.zip`; memiliki fallback style built-in bila tidak terpasang).
 
 ---
 
@@ -150,8 +188,10 @@ python -m ngelaprak analyze
 python -m ngelaprak init --lang java
 python -m ngelaprak init --lang cpp
 
-# Render screenshot kode IDE
-python -m ngelaprak render --ide netbeans --file ./src/Main.java --out ./shot.png
+# Render screenshot kode IDE (editor saja atau full window)
+python -m ngelaprak render --ide netbeans --view editor --file ./src/Main.java --out ./shot.png
+python -m ngelaprak render --ide netbeans --view full --project KasirApp --file ./src/Main.java --out ./shot_full.png
+python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file ./main.cpp --out ./cb_full.png
 
 # Ekspor Word ke PDF
 python -m ngelaprak export-pdf --docx ./Laprak.docx
@@ -167,10 +207,11 @@ NgeLaprak/
 ├── install.ps1           # Skrip instalasi Windows
 ├── install.sh            # Skrip instalasi Linux/macOS
 ├── package.json          # Runner npm / npx
+├── docs/images/          # Aset gambar perbandingan Before vs After (--view editor & --view full)
 ├── ngelaprak/            # Paket Python Core
-│   ├── cli.py            # Terminal interface
+│   ├── cli.py            # Terminal interface (--view editor|full)
 │   ├── core/             # Analyzer, docx builder, pdf exporter
-│   └── renderers/        # NetBeans, Code::Blocks, VS Code, GUI Framer
+│   └── renderers/        # Native NetBeans (Java2D/Swing), Code::Blocks (wxScintilla), VS Code, GUI Framer
 └── templates/            # Aset tema, ikon Java, dan layout cover
 ```
 

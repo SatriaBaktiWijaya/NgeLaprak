@@ -20,6 +20,7 @@ echo -e "\033[0;32m[✓] Python 3 terdeteksi: $(python3 --version)\033[0m"
 # 2. Install Dependencies
 echo -e "\n\033[0;33m[*] Memasang dependensi Python...\033[0m"
 python3 -m pip install --upgrade python-docx pypdf pdfplumber pillow --quiet
+python3 -m pip install --upgrade wxPython --quiet || echo -e "\033[0;33m[!] wxPython gagal dipasang otomatis (opsional untuk Code::Blocks native di Linux).\033[0m"
 echo -e "\033[0;32m[✓] Dependensi Python siap!\033[0m"
 
 # 3. Detect Agent Skills Root

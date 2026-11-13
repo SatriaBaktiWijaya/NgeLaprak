@@ -9,19 +9,29 @@ Write-Host "   NgeLaprak: Universal Laprak Skill Setup" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
 # 1. Check Python
-try {
-    $pythonVersion = python --version 2>&1
-    Write-Host "[OK] Python terdeteksi: $pythonVersion" -ForegroundColor Green
-} catch {
+$pyCmd = $null
+foreach ($cand in @("python", "py", "python3")) {
+    if (Get-Command $cand -ErrorAction SilentlyContinue) {
+        $pyCmd = $cand
+        break
+    }
+}
+if (-not $pyCmd) {
     Write-Error "Python tidak ditemukan! Silakan instal Python 3.9+ terlebih dahulu."
     exit 1
 }
+$pythonVersion = & $pyCmd --version 2>&1
+Write-Host "[OK] Python terdeteksi ($pyCmd): $pythonVersion" -ForegroundColor Green
 
 # 2. Install Python Dependencies
 Write-Host ""
-Write-Host "[*] Memasang dependensi Python..." -ForegroundColor Yellow
-python -m pip install --upgrade python-docx pypdf pdfplumber pillow --quiet
+Write-Host "[*] Memasang dependensi Python (termasuk wxPython untuk native Code::Blocks)..." -ForegroundColor Yellow
+& $pyCmd -m pip install --upgrade python-docx pypdf pdfplumber pillow wxPython --quiet
 Write-Host "[OK] Dependensi Python siap!" -ForegroundColor Green
+
+if (-not (Get-Command "javac" -ErrorAction SilentlyContinue)) {
+    Write-Warning "JDK (javac/java) tidak terdeteksi di PATH. Diperlukan untuk renderer native Apache NetBeans."
+}
 
 # 3. Detect Agent Skills Root
 $userProfile = [System.Environment]::GetFolderPath('UserProfile')
