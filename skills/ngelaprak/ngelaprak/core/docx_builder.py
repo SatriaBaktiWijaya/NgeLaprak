@@ -93,43 +93,176 @@ class LaprakDocxBuilder:
         nama,
         nim,
         asisten_list=None,
-        prodi="PROGRAM STUDI S1 REKAYASA PERANGKAT LUNAK",
-        fakultas="FAKULTAS INFORMATIKA",
-        universitas="TELKOM UNIVERSITY PURWOKERTO",
-        tahun="2026"
+        prodi=None,
+        fakultas=None,
+        universitas=None,
+        tahun=None
     ):
         """
-        Updates student identity on the cover page following exact template weights:
-        - Nama : <Nama> (Bold 12pt)
-        - Nama (NIM): <NIM> (Non-bold 12pt)
-        - Asisten Praktikum: (Bold label, Non-bold assistant names)
+        Updates student identity and institution on the cover page following exact template weights.
+        Agnostic to any Indonesian university (Telkom, UI, ITB, UGM, Undip, ITS, Politeknik, dll.),
+        supporting NIM, NPM, NRP, and both paragraph & table cover layouts.
         """
-        for p in self.doc.paragraphs[:25]:
+        # 1. Update cover paragraphs (first 35 paragraphs)
+        for p in self.doc.paragraphs[:35]:
             t = p.text.strip()
-            if t.startswith("Nama :") or t == "Nama":
-                self.safe_set_paragraph_text(p, f"Nama : {nama}", bold=True, font_size=Pt(12))
-            elif "Nama (NIM):" in t or "(NIM):" in t or "NIM :" in t:
-                self.safe_set_paragraph_text(p, f"Nama (NIM): {nim}", bold=False, font_size=Pt(12))
-            elif t.startswith("PROGRAM STUDI"):
-                self.safe_set_paragraph_text(p, prodi, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
-            elif t.startswith("FAKULTAS") or "FAKULTAS" in t:
-                self.safe_set_paragraph_text(p, fakultas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
-            elif "TELKOM UNIVERSITY" in t:
-                self.safe_set_paragraph_text(p, universitas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
-            elif t.isdigit() and len(t) == 4:
-                self.safe_set_paragraph_text(p, tahun, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
+            if not t:
+                continue
 
+            # Student Name
+            if re.search(r'^(nama|nama\s+lengkap|nama\s+mahasiswa)\s*:', t, re.IGNORECASE) or t == "Nama":
+                prefix = re.split(r':', t)[0].strip() if ":" in t else "Nama"
+                self.safe_set_paragraph_text(p, f"{prefix} : {nama}", bold=True, font_size=Pt(12))
+
+            # Student ID (NIM, NPM, NRP, etc.)
+            elif any(k in t.upper() for k in ["NIM", "NPM", "NRP", "(NIM)", "(NPM)", "(NRP)"]):
+                if "NPM" in t.upper():
+                    label = "Nama (NPM)" if "Nama" in t else "NPM"
+                elif "NRP" in t.upper():
+                    label = "Nama (NRP)" if "Nama" in t else "NRP"
+                else:
+                    label = "Nama (NIM)" if "Nama" in t else "NIM"
+                self.safe_set_paragraph_text(p, f"{label}: {nim}", bold=False, font_size=Pt(12))
+
+            # Department / Prodi
+            elif prodi and any(k in t.upper() for k in ["PROGRAM STUDI", "PRODI", "JURUSAN", "DEPARTEMEN"]):
+                self.safe_set_paragraph_text(p, prodi, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
+
+            # Faculty
+            elif fakultas and any(k in t.upper() for k in ["FAKULTAS", "FACULTY", "STEI", "FMIPA", "FTI", "FTSL", "FTMD", "SBM", "SITH"]):
+                self.safe_set_paragraph_text(p, fakultas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
+
+            # University / Institution
+            elif universitas and any(k in t.upper() for k in ["UNIVERSITAS", "UNIVERSITY", "INSTITUT", "INSTITUTE", "POLITEKNIK", "POLYTECHNIC", "SEKOLAH TINGGI", "AKADEMI"]):
+                self.safe_set_paragraph_text(p, universitas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
+
+            # Year
+            elif tahun and re.match(r'^(202[0-9])$', t):
+                self.safe_set_paragraph_text(p, str(tahun), bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # 2. Update cover tables if any (e.g. 2-column or 3-column identity tables)
+        for table in self.doc.tables[:3]:
+            for row in table.rows:
+                row_text = " ".join(c.text.strip() for c in row.cells)
+                if not row_text:
+                    continue
+                if re.search(r'\bnama\b', row_text, re.IGNORECASE) and not re.search(r'\b(asisten|dosen)\b', row_text, re.IGNORECASE):
+                    if len(row.cells) >= 2:
+                        target_cell = row.cells[-1]
+                        if target_cell.paragraphs:
+                            has_colon = ":" in target_cell.text or (len(row.cells) == 2 and ":" in row.cells[0].text)
+                            prefix = ": " if has_colon and not target_cell.text.strip().startswith(":") else ""
+                            self.safe_set_paragraph_text(target_cell.paragraphs[0], f"{prefix}{nama}".strip(), bold=True, font_size=Pt(12))
+                elif re.search(r'\b(nim|npm|nrp)\b', row_text, re.IGNORECASE):
+                    if len(row.cells) >= 2:
+                        target_cell = row.cells[-1]
+                        if target_cell.paragraphs:
+                            has_colon = ":" in target_cell.text or (len(row.cells) == 2 and ":" in row.cells[0].text)
+                            prefix = ": " if has_colon and not target_cell.text.strip().startswith(":") else ""
+                            self.safe_set_paragraph_text(target_cell.paragraphs[0], f"{prefix}{nim}".strip(), bold=False, font_size=Pt(12))
+
+        # 3. Assistants
         if asisten_list:
             asist_found = False
             asist_idx = 0
-            for p in self.doc.paragraphs[:25]:
+            for p in self.doc.paragraphs[:35]:
                 t = p.text.strip()
-                if "Asisten Praktikum" in t:
+                if "Asisten Praktikum" in t or "Asisten Lab" in t:
                     asist_found = True
                     continue
                 if asist_found and asist_idx < len(asisten_list) and "(" in t and ")" in t:
                     self.safe_set_paragraph_text(p, asisten_list[asist_idx], bold=False, font_size=Pt(12))
                     asist_idx += 1
+
+    def add_cover_logo(self, image_path, width=Inches(2.2), align=WD_ALIGN_PARAGRAPH.CENTER, insert_before_p_index=None):
+        """
+        Inserts an institutional logo onto the cover page with specified width and alignment.
+        """
+        if not os.path.exists(image_path):
+            return None
+
+        if insert_before_p_index is not None and insert_before_p_index < len(self.doc.paragraphs):
+            target_p = self.doc.paragraphs[insert_before_p_index]
+            p_img = target_p.insert_paragraph_before(style='Normal')
+        else:
+            p_img = self.doc.add_paragraph(style='Normal')
+
+        p_img.alignment = align
+        p_img.paragraph_format.space_before = Pt(12)
+        p_img.paragraph_format.space_after = Pt(12)
+        r = p_img.add_run()
+        r.add_picture(image_path, width=width)
+        return p_img
+
+    def create_default_cover(
+        self,
+        title="LAPORAN PRAKTIKUM",
+        pertemuan="PERTEMUAN 1",
+        modul_title="MODUL 1",
+        nama="Nama Mahasiswa",
+        nim="12345678",
+        prodi="PROGRAM STUDI REKAYASA PERANGKAT LUNAK",
+        fakultas="FAKULTAS INFORMATIKA",
+        universitas="UNIVERSITAS",
+        tahun="2026",
+        logo_path=None,
+        logo_width=Inches(2.0),
+        asisten_list=None
+    ):
+        """
+        Builds a standard, elegant Indonesian university cover page from scratch.
+        """
+        p_title = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_title, title, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_before=Pt(18), space_after=Pt(4))
+
+        p_pert = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_pert, pertemuan, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(4))
+
+        p_mod = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_mod, f"“{modul_title}”", bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(24))
+
+        if logo_path and os.path.exists(logo_path):
+            self.add_cover_logo(logo_path, width=logo_width, align=WD_ALIGN_PARAGRAPH.CENTER)
+
+        # Blank space
+        p_sp = self.doc.add_paragraph(style='Normal')
+        p_sp.paragraph_format.space_after = Pt(24)
+
+        # Student info
+        p_oleh = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_oleh, "Disusun Oleh :", bold=True, font_size=Pt(12), space_after=Pt(4))
+
+        p_nama = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_nama, f"Nama : {nama}", bold=True, font_size=Pt(12), space_after=Pt(2))
+
+        p_nim = self.doc.add_paragraph(style='Normal')
+        self.safe_set_paragraph_text(p_nim, f"Nama (NIM): {nim}", bold=False, font_size=Pt(12), space_after=Pt(14))
+
+        if asisten_list:
+            p_asist_lbl = self.doc.add_paragraph(style='Normal')
+            self.safe_set_paragraph_text(p_asist_lbl, "Asisten Praktikum :", bold=True, font_size=Pt(12), space_after=Pt(2))
+            for asist in asisten_list:
+                p_asist = self.doc.add_paragraph(style='Normal')
+                self.safe_set_paragraph_text(p_asist, asist, bold=False, font_size=Pt(12), space_after=Pt(2))
+
+        # Bottom institution block
+        p_sp2 = self.doc.add_paragraph(style='Normal')
+        p_sp2.paragraph_format.space_after = Pt(36)
+
+        if prodi:
+            p_prodi = self.doc.add_paragraph(style='Normal')
+            self.safe_set_paragraph_text(p_prodi, prodi, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(2))
+        if fakultas:
+            p_fak = self.doc.add_paragraph(style='Normal')
+            self.safe_set_paragraph_text(p_fak, fakultas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(2))
+        if universitas:
+            p_univ = self.doc.add_paragraph(style='Normal')
+            self.safe_set_paragraph_text(p_univ, universitas, bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(2))
+        if tahun:
+            p_th = self.doc.add_paragraph(style='Normal')
+            self.safe_set_paragraph_text(p_th, str(tahun), bold=True, font_size=Pt(14), align=WD_ALIGN_PARAGRAPH.CENTER, space_after=Pt(18))
+
+        self.doc.add_page_break()
 
     def set_objectives(self, objectives, font_size=Pt(12), line_spacing=1.15):
         """

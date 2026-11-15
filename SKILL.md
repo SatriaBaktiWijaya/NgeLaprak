@@ -140,11 +140,25 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
    - Jika screenshot manual tidak tersedia, gunakan generator bawaan `ngelaprak` yang memakai engine native IDE asli (`view="editor"` atau `view="full"`):
      - **Java / Apache NetBeans (`netbeans_renderer.py` + `NetBeansNativeRenderer.java`)**:
        - Engine Java2D `LCD_HRGB` + `javac` Compiler Tree API (semantic resolution akurat untuk field non-static/static, pemanggilan method static miring, Javadoc `@tag` & HTML `<tag>`, fold box, dan badge `@Override`).
-       - Tema modern **FlatLaf Light** resmi Apache NetBeans 31 (keywords biru `#336BDD`, string hijau `#1E9347`, komentar abu `#969696`, field ungu-pink `#CE54B8`, gutter `#E9E8E2`, baris aktif krem `#F9F4E0`, margin guide `#FFD4D4`).
-       - Mendukung `view="editor"` (potongan kode) maupun `view="full"` (jendela lengkap Swing + FlatLightLaf + ikon SVG/PNG resmi JAR NetBeans).
+       - Tema modern **FlatLaf Light** resmi Apache NetBeans 31 (keywords biru `#336BDD`, string hijau `#1E9347`, komentar abu `#969696`, field ungu-pink `#CE54B8`, gutter `#E9E8E2`, baris aktif krem `#F9F4E0`, margin guide `#E2E2E2`).
+       - Unified 30px FlatTitlePane (Ikon NetBeans 3D + 13 menu `File`..`Help` + centered title + Search `Ctrl+I` + caption buttons Win11).
+       - Main Toolbar lengkap (combo box `<default config>` + Build/Run/Debug/Profile + widget Heap/Memory meter `580,8/864,0MB`).
+       - Left Explorer vertical split: 4 tab (`Projects | Files | Favorites | Services`) + package tree bertingkat + panel `Navigator` dari AST `javac` dengan 7 filter button.
+       - Editor multi-tab dengan overline biru aktif (`underlineAtTop`), FlatLaf vector close button, dan micro-toolbar strip `Source | History`.
+       - Default caret vertikal di baris 1 kolom 1, error stripe scrollbar dengan badge hijau, dan dock bawah `Output  x` (~140px).
+       - Status bar tersegmentasi (`1:1 | INS | Unix (LF) | UTF-8`) dengan divider vertikal.
+       - Skala raster 1:1 integer default crisp unblurred.
+       - Mendukung `view="editor"` (potongan kode bersih) maupun `view="full"` (jendela IDE penuh).
      - **C / C++ / Code::Blocks (`codeblocks_renderer.py`)**:
-       - Engine **native `wxScintilla` + Win32 GDI** dengan aturan `lexer_cpp.xml` resmi Code::Blocks (font Courier New 10pt, green changebar, marker fold `[-]` Scintilla, literal `char` oranye `(224,160,0)`, preprocessor hijau).
-       - Mendukung `view="editor"` (area editor + gutter) maupun `view="full"` (jendela lengkap Code::Blocks `wx.Frame` + `wx.aui` + ikon toolbar resmi `resources.zip`/`compiler.zip`).
+       - Engine **native `wxScintilla` + Win32 GDI** dengan aturan `lexer_cpp.xml` resmi Code::Blocks 25.03 (font Courier New 10pt, keyword biru/hijau, fold marker kotak `[-]`/`[+]`, literal `char` oranye `(224,160,0)`).
+       - Window title resmi `{filename} [{project_name}] - Code::Blocks 25.03` dengan ikon kubus 3D.
+       - Menu bar 15 item lengkap (`File`, `Edit`, `View`, `Search`, `Project`, `Build`, `Debug`, `Fortran`, `wxSmith`, `Tools`, `Tools+`, `Plugins`, `DoxyBlocks`, `Settings`, `Help`).
+       - 3 baris `wx.aui.AuiToolBar` dengan rebar grippers, combo Target `Debug`, combo Scope `<global>`, dan incremental search/zoom tools.
+       - Management pane ~200px (tab `Projects | Symbols`, tree `Sources` & `Headers`, active blue `#0078D7` selection).
+       - Clean editor tab `{filename}  x` tanpa ikon palsu.
+       - Bottom dock `Logs & others` (~140px) dengan tab `Code::Blocks` log ParseManager otentik.
+       - Margin changebar bersih default (opsi `--show-changebar`), sharp 1px black caret di baris 1 col 1, dan status bar 8-pane lengkap (`Path | C/C++ | CRLF | Encoding | Pos | INS | R/W | default`).
+       - Mendukung `view="editor"` (area editor bersih + gutter) maupun `view="full"` (jendela IDE Code::Blocks 25.03 penuh).
      - **Python / Web / VS Code (`vscode_renderer.py`)**:
        - **DEFAULT: Tema Gelap (Dark+ / Dark Modern)** dengan editor background `#1e1e1e`, tab bar aktif dengan ikon bahasa dan tombol close, breadcrumb navigasi, gutter abu-abu `#858585`, serta syntax highlighting otentik (keywords biru `#569cd6`, control flow magenta `#c586c0`, string oranye `#ce9178`, angka `#b5cea8`, fungsi `#dcdcaa`, komentar `#6a9955`).
        - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
@@ -288,6 +302,17 @@ python -m ngelaprak render --ide netbeans --view editor --file Code/src/main/jav
 python -m ngelaprak render --ide netbeans --view full --project KasirApp --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main_full.png
 python -m ngelaprak render --ide codeblocks --view editor --file Code/main.cpp --out Laprak/screenshots/code1.png
 python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file Code/main.cpp --out Laprak/screenshots/code1_full.png
+
+# Opsi Lanjutan Render IDE (1-to-1 Pixel-Perfect Fidelity):
+#   --scale <float>        : Faktor skala raster (default: 1.0 integer crisp)
+#   --caret <LINE:COL>     : Posisi kursor/caret (default: 1:1, misal: --caret 5:10)
+#   --caret-line / --caret-col : Baris & kolom posisi kursor individual
+#   --hide-bottom-dock     : Sembunyikan dock bawah (Output NetBeans / Logs & others Code::Blocks)
+#   --hide-navigator       : Sembunyikan panel Navigator di NetBeans
+#   --show-changebar       : Tampilkan margin changebar hijau baris termodifikasi di Code::Blocks
+#   --no-margin-guide      : Sembunyikan garis panduan margin kolom 80
+#   --no-cursor            : Sembunyikan caret kursor
+#   --extra-files <a,b>    : Daftar tab/berkas ekstra yang dibuka di editor & explorer
 
 # Simulasi & render output CLI interaktif mahasiswa (multi-step input)
 python -m ngelaprak simulate-cli --type stack --out Laprak/screenshots/cli_interactive.png

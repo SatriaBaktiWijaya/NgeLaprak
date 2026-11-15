@@ -32,7 +32,7 @@ public class NetBeansNativeRenderer {
     private static final Color COL_LINE_NUM = new Color(0x6E, 0x6E, 0x6E);
     private static final Color COL_FOLD_BAR = new Color(0x8C, 0x8C, 0x8C);
     private static final Color COL_INDENT_GUIDE = new Color(0xD3, 0xD3, 0xD3);
-    private static final Color COL_TEXT_LIMIT = new Color(0xFF, 0xD4, 0xD4);
+    private static final Color COL_TEXT_LIMIT = new Color(0xE2, 0xE2, 0xE2); // Subtle gray margin guide at column 80
 
     private static final Color COL_KEYWORD = new Color(0x33, 0x6B, 0xDD);
     private static final Color COL_STRING = new Color(0x1E, 0x93, 0x47);
@@ -51,6 +51,36 @@ public class NetBeansNativeRenderer {
         "volatile", "while", "true", "false", "null", "var", "record", "sealed", "permits", "yield"
     ));
 
+    static class MemberItem {
+        enum Kind { CLASS, CONSTRUCTOR, METHOD, FIELD }
+        Kind kind;
+        String name;
+        String returnType; // null/empty for void or constructor
+        String params;     // e.g. "Transaksi t"
+        String type;       // for field: type
+        boolean isStatic;
+        boolean isPrivate;
+        boolean isProtected;
+        boolean isPublic = true;
+
+        public String getDisplayLabel() {
+            if (kind == Kind.CLASS) return name;
+            if (kind == Kind.CONSTRUCTOR) return name + "(" + (params != null ? params : "") + ")";
+            if (kind == Kind.METHOD) {
+                String p = params != null ? params : "";
+                if (returnType == null || returnType.isEmpty() || "void".equalsIgnoreCase(returnType)) {
+                    return name + "(" + p + ")";
+                } else {
+                    return name + "(" + p + ") : " + returnType;
+                }
+            }
+            if (kind == Kind.FIELD) {
+                return name + (type != null && !type.isEmpty() ? " : " + type : "");
+            }
+            return name;
+        }
+    }
+
     static class AnalysisResult {
         Color[] fg;
         boolean[] bold;
@@ -63,6 +93,7 @@ public class NetBeansNativeRenderer {
         String packageName = "";
         String className = "";
         boolean hasMain = false;
+        List<MemberItem> members = new ArrayList<>();
     }
 
     public static void main(String[] args) throws Exception {
@@ -72,9 +103,21 @@ public class NetBeansNativeRenderer {
         String filename = opts.getOrDefault("filename", filePath != null ? new File(filePath).getName() : "Main.java");
         int startLine = Integer.parseInt(opts.getOrDefault("start", "1"));
         int endLine = Integer.parseInt(opts.getOrDefault("end", "-1"));
-        int activeOffset = Integer.parseInt(opts.getOrDefault("active-offset", "-1"));
+
+        // Caret position defaults to line 1 col 1 per specification
+        int caretLine = Integer.parseInt(opts.getOrDefault("caret-line", "1"));
+        int caretCol = Integer.parseInt(opts.getOrDefault("caret-col", "1"));
+        if (opts.containsKey("active-offset")) {
+            int activeOffset = Integer.parseInt(opts.get("active-offset"));
+            if (activeOffset >= 0) {
+                caretLine = startLine + activeOffset;
+            }
+        }
+
         boolean withCursor = Boolean.parseBoolean(opts.getOrDefault("cursor", "true"));
         boolean withMarginGuide = Boolean.parseBoolean(opts.getOrDefault("margin-guide", "true"));
+        boolean showBottomDock = Boolean.parseBoolean(opts.getOrDefault("show-bottom-dock", "true"));
+        boolean showNavigator = Boolean.parseBoolean(opts.getOrDefault("show-navigator", "true"));
         String view = opts.getOrDefault("view", "editor");
         String projectName = opts.getOrDefault("project", "ProjekPraktikum");
         String sourcePath = opts.getOrDefault("sourcepath", "");
@@ -82,6 +125,9 @@ public class NetBeansNativeRenderer {
         String nbHome = opts.getOrDefault("nb-home", DEFAULT_NB_HOME);
         int jitterW = Integer.parseInt(opts.getOrDefault("jitter-w", "32"));
         int jitterH = Integer.parseInt(opts.getOrDefault("jitter-h", "6"));
+
+        double defaultScale = "full".equalsIgnoreCase(view) ? 1.0 : 1.5;
+        double scale = Double.parseDouble(opts.getOrDefault("scale", String.valueOf(defaultScale)));
 
         String code;
         if (filePath != null && !filePath.isEmpty()) {
@@ -101,9 +147,16 @@ public class NetBeansNativeRenderer {
                 }
             }
             if (!extraFiles.contains(filename)) extraFiles.add(0, filename);
-            renderFullWindow(code, ar, filename, projectName, extraFiles, startLine, endLine, activeOffset, withCursor, withMarginGuide, jitterW, jitterH, nbHome, new File(outPath));
+            renderFullWindow(
+                code, ar, filename, projectName, extraFiles,
+                startLine, endLine, caretLine, caretCol, withCursor, withMarginGuide,
+                showBottomDock, showNavigator, scale, jitterW, jitterH, nbHome, new File(outPath)
+            );
         } else {
-            renderEditorOnly(code, ar, startLine, endLine, activeOffset, withCursor, withMarginGuide, jitterW, jitterH, nbHome, new File(outPath));
+            renderEditorOnly(
+                code, ar, startLine, endLine, caretLine, caretCol,
+                withCursor, withMarginGuide, scale, jitterW, jitterH, nbHome, new File(outPath)
+            );
         }
     }
 
@@ -226,29 +279,69 @@ public class NetBeansNativeRenderer {
                 try { task.analyze(); } catch (Exception ignored) {}
                 Trees trees = Trees.instance(task);
 
-                // Collect declared fields & static methods first as fallback for unresolved types
+                // Collect package, declared fields, static methods & members for Navigator
                 for (CompilationUnitTree cu : asts) {
                     if (cu.getPackageName() != null) {
                         ar.packageName = cu.getPackageName().toString();
                     }
-                    new TreeScanner<Void, Void>() {
-                        @Override
-                        public Void visitVariable(VariableTree node, Void p) {
-                            // Handled inside TreePathScanner
-                            return super.visitVariable(node, p);
-                        }
-                    }.scan(cu, null);
                 }
 
                 for (CompilationUnitTree cu : asts) {
                     LineMap lineMap = cu.getLineMap();
                     SourcePositions pos = trees.getSourcePositions();
 
-                    // First pass: collect class-level fields and static methods
+                    // First pass: collect class-level fields, static methods, and member structure for Navigator
                     new TreePathScanner<Void, Void>() {
                         @Override
                         public Void visitClass(ClassTree node, Void p) {
                             if (ar.className.isEmpty()) ar.className = node.getSimpleName().toString();
+                            MemberItem classItem = new MemberItem();
+                            classItem.kind = MemberItem.Kind.CLASS;
+                            classItem.name = node.getSimpleName().toString();
+                            ar.members.add(classItem);
+
+                            for (Tree member : node.getMembers()) {
+                                if (member instanceof MethodTree) {
+                                    MethodTree mt = (MethodTree) member;
+                                    String mName = mt.getName().toString();
+                                    MemberItem mItem = new MemberItem();
+                                    mItem.isStatic = mt.getModifiers().getFlags().contains(Modifier.STATIC);
+                                    mItem.isPrivate = mt.getModifiers().getFlags().contains(Modifier.PRIVATE);
+                                    mItem.isProtected = mt.getModifiers().getFlags().contains(Modifier.PROTECTED);
+                                    mItem.isPublic = mt.getModifiers().getFlags().contains(Modifier.PUBLIC) || (!mItem.isPrivate && !mItem.isProtected);
+
+                                    StringBuilder sb = new StringBuilder();
+                                    for (VariableTree vt : mt.getParameters()) {
+                                        if (sb.length() > 0) sb.append(", ");
+                                        sb.append(vt.getType() != null ? vt.getType().toString() : "Object")
+                                          .append(" ")
+                                          .append(vt.getName().toString());
+                                    }
+                                    mItem.params = sb.toString();
+
+                                    if ("<init>".equals(mName)) {
+                                        mItem.kind = MemberItem.Kind.CONSTRUCTOR;
+                                        mItem.name = classItem.name.isEmpty() ? "Constructor" : classItem.name;
+                                        mItem.returnType = null;
+                                    } else {
+                                        mItem.kind = MemberItem.Kind.METHOD;
+                                        mItem.name = mName;
+                                        mItem.returnType = mt.getReturnType() != null ? mt.getReturnType().toString() : "void";
+                                    }
+                                    ar.members.add(mItem);
+                                } else if (member instanceof VariableTree) {
+                                    VariableTree vt = (VariableTree) member;
+                                    MemberItem fItem = new MemberItem();
+                                    fItem.kind = MemberItem.Kind.FIELD;
+                                    fItem.name = vt.getName().toString();
+                                    fItem.type = vt.getType() != null ? vt.getType().toString() : "";
+                                    fItem.isStatic = vt.getModifiers().getFlags().contains(Modifier.STATIC);
+                                    fItem.isPrivate = vt.getModifiers().getFlags().contains(Modifier.PRIVATE);
+                                    fItem.isProtected = vt.getModifiers().getFlags().contains(Modifier.PROTECTED);
+                                    fItem.isPublic = vt.getModifiers().getFlags().contains(Modifier.PUBLIC) || (!fItem.isPrivate && !fItem.isProtected);
+                                    ar.members.add(fItem);
+                                }
+                            }
                             return super.visitClass(node, p);
                         }
 
@@ -278,24 +371,6 @@ public class NetBeansNativeRenderer {
 
                     // Second pass: apply NetBeans semantic coloring and gutter annotations
                     new TreePathScanner<Void, Void>() {
-                        private void styleDeclarationName(Tree node, String name, Color fg, boolean bold, boolean italic) {
-                            if (name == null || name.isEmpty() || name.equals("<init>")) return;
-                            long start = pos.getStartPosition(cu, node);
-                            long end = pos.getEndPosition(cu, node);
-                            if (start < 0 || end < 0 || start >= len) return;
-                            String slice = code.substring((int) start, (int) Math.min(end, len));
-                            int rel = slice.indexOf(name);
-                            if (rel >= 0) {
-                                int s = (int) start + rel;
-                                int e = s + name.length();
-                                for (int k = s; k < e; k++) {
-                                    if (fg != null) ar.fg[k] = fg;
-                                    if (bold) ar.bold[k] = true;
-                                    if (italic) ar.italic[k] = true;
-                                }
-                            }
-                        }
-
                         private void registerFold(Tree node) {
                             long s = pos.getStartPosition(cu, node);
                             long e = pos.getEndPosition(cu, node);
@@ -312,7 +387,6 @@ public class NetBeansNativeRenderer {
                         @Override
                         public Void visitClass(ClassTree node, Void p) {
                             registerFold(node);
-                            styleDeclarationName(node, node.getSimpleName().toString(), null, true, false);
                             return super.visitClass(node, p);
                         }
 
@@ -329,7 +403,6 @@ public class NetBeansNativeRenderer {
                             if (hasOverride) {
                                 long ms = pos.getStartPosition(cu, node);
                                 if (ms >= 0) {
-                                    // Place override badge on the method signature line
                                     String mSlice = code.substring((int) ms, (int) Math.min(pos.getEndPosition(cu, node), len));
                                     int parenIdx = mSlice.indexOf('(');
                                     int namePos = parenIdx > 0 ? mSlice.lastIndexOf(node.getName().toString(), parenIdx) : 0;
@@ -342,8 +415,8 @@ public class NetBeansNativeRenderer {
                             String name = node.getName().toString();
                             if (name.equals("<init>")) {
                                 Tree parent = getCurrentPath().getParentPath().getLeaf();
-                                if (parent instanceof ClassTree ct) {
-                                    name = ct.getSimpleName().toString();
+                                if (parent instanceof ClassTree) {
+                                    name = ((ClassTree) parent).getSimpleName().toString();
                                 }
                             }
                             long bodyStart = node.getBody() != null ? pos.getStartPosition(cu, node.getBody()) : pos.getEndPosition(cu, node);
@@ -429,7 +502,6 @@ public class NetBeansNativeRenderer {
                                     boolean isField = (el != null && el.getKind().isField())
                                             || (node.getExpression().toString().equals("this") && declaredFields.contains(memberName));
                                     boolean isStatic = (el != null && el.getModifiers().contains(Modifier.STATIC) && el.getKind() != ElementKind.CLASS && el.getKind() != ElementKind.PACKAGE);
-                                    // Heuristic fallback for unresolved static ClassName.method() calls
                                     if (el == null) {
                                         String exprStr = node.getExpression().toString();
                                         if (!exprStr.isEmpty() && Character.isUpperCase(exprStr.charAt(0)) && getCurrentPath().getParentPath().getLeaf() instanceof MethodInvocationTree) {
@@ -472,6 +544,43 @@ public class NetBeansNativeRenderer {
                 }
             }
         } catch (Exception ignored) {}
+
+        // Fallback member extraction if AST did not find any members
+        if (ar.members.isEmpty()) {
+            String cls = ar.className.isEmpty() ? (filename.endsWith(".java") ? filename.substring(0, filename.length() - 5) : filename) : ar.className;
+            MemberItem ci = new MemberItem();
+            ci.kind = MemberItem.Kind.CLASS;
+            ci.name = cls;
+            ar.members.add(ci);
+
+            java.util.regex.Pattern methPat = java.util.regex.Pattern.compile(
+                "(?:public|protected|private)?\\s*(?:static\\s+)?(?:([\\w<>\\[\\]]+)\\s+)?(\\w+)\\s*\\(([^)]*)\\)"
+            );
+            for (String line : code.split("\n", -1)) {
+                String tr = line.trim();
+                if (tr.startsWith("//") || tr.startsWith("/*") || tr.startsWith("*")) continue;
+                java.util.regex.Matcher m = methPat.matcher(tr);
+                if (m.find()) {
+                    String ret = m.group(1);
+                    String name = m.group(2);
+                    String params = m.group(3);
+                    if (JAVA_KEYWORDS.contains(name) || "if".equals(name) || "for".equals(name) || "while".equals(name) || "switch".equals(name) || "catch".equals(name)) {
+                        continue;
+                    }
+                    MemberItem item = new MemberItem();
+                    if (ret == null || name.equals(cls)) {
+                        item.kind = MemberItem.Kind.CONSTRUCTOR;
+                        item.name = cls;
+                    } else {
+                        item.kind = MemberItem.Kind.METHOD;
+                        item.name = name;
+                        item.returnType = ret;
+                    }
+                    item.params = params != null ? params.trim() : "";
+                    ar.members.add(item);
+                }
+            }
+        }
 
         return ar;
     }
@@ -519,7 +628,6 @@ public class NetBeansNativeRenderer {
     private static Icon loadJarIcon(String jarPath, String svgEntry, String fallbackPngEntry, int size) {
         File jf = new File(jarPath);
         if (!jf.exists()) return null;
-        // Try SVG via com.github.weisj.jsvg.parser.SVGLoader using reflection
         if (svgEntry != null) {
             try (JarFile jar = new JarFile(jf)) {
                 ZipEntry entry = jar.getEntry(svgEntry);
@@ -563,6 +671,76 @@ public class NetBeansNativeRenderer {
         return null;
     }
 
+    private static Icon createCircleIcon(Color color, int size) {
+        return new Icon() {
+            public int getIconWidth() { return size; }
+            public int getIconHeight() { return size; }
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(color);
+                g2.fillOval(x + 2, y + 2, size - 4, size - 4);
+                g2.setColor(color.darker());
+                g2.drawOval(x + 2, y + 2, size - 4, size - 4);
+                g2.dispose();
+            }
+        };
+    }
+
+    private static Icon createDiamondIcon(Color color, int size) {
+        return new Icon() {
+            public int getIconWidth() { return size; }
+            public int getIconHeight() { return size; }
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(color);
+                Polygon p = new Polygon();
+                p.addPoint(x + size / 2, y + 2);
+                p.addPoint(x + size - 2, y + size / 2);
+                p.addPoint(x + size / 2, y + size - 2);
+                p.addPoint(x + 2, y + size / 2);
+                g2.fillPolygon(p);
+                g2.setColor(color.darker());
+                g2.drawPolygon(p);
+                g2.dispose();
+            }
+        };
+    }
+
+    static class ErrorStripePanel extends JPanel {
+        ErrorStripePanel() {
+            setPreferredSize(new Dimension(14, 100));
+            setBackground(new Color(0xF2, 0xF2, 0xF2));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g0) {
+            super.paintComponent(g0);
+            Graphics2D g = (Graphics2D) g0;
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth();
+            int h = getHeight();
+
+            g.setColor(new Color(0xF2, 0xF2, 0xF2));
+            g.fillRect(0, 0, w, h);
+            g.setColor(new Color(0xE2, 0xE2, 0xE2));
+            g.drawLine(0, 0, 0, h);
+
+            // Top green status checkmark badge
+            int bx = (w - 10) / 2;
+            int by = 3;
+            g.setColor(new Color(0x66, 0xBB, 0x6A));
+            g.fillRoundRect(bx, by, 10, 10, 2, 2);
+            g.setColor(new Color(0x43, 0xA0, 0x47));
+            g.drawRoundRect(bx, by, 9, 9, 2, 2);
+
+            g.setColor(Color.WHITE);
+            g.drawLine(bx + 2, by + 5, bx + 4, by + 7);
+            g.drawLine(bx + 4, by + 7, bx + 8, by + 3);
+        }
+    }
+
     static class EditorCanvas extends JPanel {
         private final String[] allLines;
         private final int[] lineStartOffsets;
@@ -570,6 +748,7 @@ public class NetBeansNativeRenderer {
         private final int startIdx;
         private final int endIdx;
         private final int activeLineIdx;
+        private final int caretCol;
         private final boolean withCursor;
         private final boolean withMarginGuide;
         private final BufferedImage overrideBadge;
@@ -587,7 +766,11 @@ public class NetBeansNativeRenderer {
         private final int topPad = 4;
         private final int maxCodeWidthPx;
 
-        EditorCanvas(String code, AnalysisResult ar, int startLine, int endLine, int activeOffset, boolean withCursor, boolean withMarginGuide, int jitterW, int jitterH, String nbHome, boolean isFullWindow) {
+        EditorCanvas(
+            String code, AnalysisResult ar, int startLine, int endLine,
+            int caretLine, int caretCol, boolean withCursor, boolean withMarginGuide,
+            int jitterW, int jitterH, String nbHome, boolean isFullWindow
+        ) {
             this.allLines = code.split("\n", -1);
             this.lineStartOffsets = new int[allLines.length];
             int off = 0;
@@ -598,8 +781,10 @@ public class NetBeansNativeRenderer {
             this.ar = ar;
             this.startIdx = Math.max(0, startLine - 1);
             this.endIdx = (endLine <= 0 || endLine > allLines.length) ? allLines.length - 1 : endLine - 1;
-            int visCount = Math.max(1, this.endIdx - this.startIdx + 1);
-            this.activeLineIdx = (activeOffset >= 0 && activeOffset < visCount) ? (this.startIdx + activeOffset) : this.endIdx;
+
+            int targetLineIdx = caretLine - 1;
+            this.activeLineIdx = Math.max(this.startIdx, Math.min(this.endIdx, targetLineIdx));
+            this.caretCol = Math.max(1, caretCol);
             this.withCursor = withCursor;
             this.withMarginGuide = withMarginGuide;
 
@@ -620,8 +805,9 @@ public class NetBeansNativeRenderer {
             }
             this.maxCodeWidthPx = maxW;
 
-            int prefW = isFullWindow ? Math.max(700, gutterWidth + codeLeftPad + maxW + 60) : (gutterWidth + codeLeftPad + maxW + 40 + jitterW);
-            int prefH = topPad + visCount * lineHeight + (isFullWindow ? 12 : jitterH);
+            int visCount = Math.max(1, this.endIdx - this.startIdx + 1);
+            int prefW = isFullWindow ? Math.max(680, gutterWidth + codeLeftPad + maxW + 40) : (gutterWidth + codeLeftPad + maxW + 40 + jitterW);
+            int prefH = topPad + visCount * lineHeight + (isFullWindow ? 8 : jitterH);
             setPreferredSize(new Dimension(prefW, prefH));
             setBackground(COL_BG);
             setOpaque(true);
@@ -643,16 +829,16 @@ public class NetBeansNativeRenderer {
 
             // Active Caret Row highlight
             int activeVisRow = activeLineIdx - startIdx;
-            if (activeVisRow >= 0) {
+            if (activeVisRow >= 0 && activeVisRow <= (endIdx - startIdx)) {
                 g.setColor(COL_CARET_ROW);
                 g.fillRect(gutterWidth, topPad + activeVisRow * lineHeight, w - gutterWidth, lineHeight);
             }
 
             // Text Limit Guide Line at column 80
             FontMetrics fmCode = g.getFontMetrics(fontPlain);
-            int charW = fmCode.charWidth('M');
+            int spaceW = fmCode.charWidth(' ');
             if (withMarginGuide) {
-                int limitX = gutterWidth + codeLeftPad + 80 * charW;
+                int limitX = gutterWidth + codeLeftPad + 80 * spaceW;
                 if (limitX < w - 10) {
                     g.setColor(COL_TEXT_LIMIT);
                     g.drawLine(limitX, 0, limitX, h);
@@ -683,7 +869,6 @@ public class NetBeansNativeRenderer {
             }
 
             FontMetrics fmLn = g.getFontMetrics(fontLineNum);
-            int spaceW = fmCode.charWidth(' ');
 
             for (int lineIdx = startIdx; lineIdx <= endIdx; lineIdx++) {
                 int visRow = lineIdx - startIdx;
@@ -760,23 +945,45 @@ public class NetBeansNativeRenderer {
                     i = j;
                 }
 
+                // Precise Caret drawing at caretCol on active line
                 if (lineIdx == activeLineIdx && withCursor) {
+                    int cursorX = gutterWidth + codeLeftPad;
+                    int colCounter = 1;
+                    for (int ci = 0; ci < line.length() && colCounter < caretCol; ci++) {
+                        char ch = line.charAt(ci);
+                        if (ch == '\t') {
+                            int tabSp = 4 - ((colCounter - 1) % 4);
+                            cursorX += tabSp * spaceW;
+                            colCounter += tabSp;
+                        } else {
+                            cursorX += spaceW;
+                            colCounter++;
+                        }
+                    }
+                    while (colCounter < caretCol) {
+                        cursorX += spaceW;
+                        colCounter++;
+                    }
                     g.setColor(Color.BLACK);
-                    g.fillRect(x + 1, yTop + 2, 2, lineHeight - 4);
+                    g.fillRect(cursorX, yTop + 2, 1, lineHeight - 4);
                 }
             }
         }
     }
 
-    private static void renderEditorOnly(String code, AnalysisResult ar, int startLine, int endLine, int activeOffset, boolean withCursor, boolean withMarginGuide, int jitterW, int jitterH, String nbHome, File outFile) throws Exception {
-        EditorCanvas canvas = new EditorCanvas(code, ar, startLine, endLine, activeOffset, withCursor, withMarginGuide, jitterW, jitterH, nbHome, false);
+    private static void renderEditorOnly(
+        String code, AnalysisResult ar, int startLine, int endLine,
+        int caretLine, int caretCol, boolean withCursor, boolean withMarginGuide,
+        double scale, int jitterW, int jitterH, String nbHome, File outFile
+    ) throws Exception {
+        EditorCanvas canvas = new EditorCanvas(code, ar, startLine, endLine, caretLine, caretCol, withCursor, withMarginGuide, jitterW, jitterH, nbHome, false);
         Dimension dim = canvas.getPreferredSize();
         canvas.setSize(dim);
 
-        double scale = 1.5;
-        BufferedImage img = new BufferedImage((int) Math.round(dim.width * scale), (int) Math.round(dim.height * scale), BufferedImage.TYPE_INT_RGB);
+        double effScale = scale > 0 ? scale : 1.5;
+        BufferedImage img = new BufferedImage((int) Math.round(dim.width * effScale), (int) Math.round(dim.height * effScale), BufferedImage.TYPE_INT_RGB);
         Graphics2D g = img.createGraphics();
-        g.scale(scale, scale);
+        if (effScale != 1.0) g.scale(effScale, effScale);
         canvas.paint(g);
         g.dispose();
 
@@ -790,20 +997,24 @@ public class NetBeansNativeRenderer {
             Method setup = flatLaf.getMethod("setup");
             setup.invoke(null);
             // Match NetBeans 31 FlatLaf.properties overrides
+            UIManager.put("TitlePane.menuBarEmbedded", Boolean.TRUE);
+            UIManager.put("TitlePane.unifiedBackground", Boolean.TRUE);
+            UIManager.put("MenuBar.background", new Color(0xF2, 0xF2, 0xF2));
             UIManager.put("TabbedPane.tabHeight", 28);
             UIManager.put("TabbedPane.tabType", "card");
             UIManager.put("TabbedPane.cardTabArc", 0);
-            UIManager.put("TabbedPane.underlineColor", new Color(0x46, 0x7A, 0xD0));
+            UIManager.put("TabbedPane.underlineHeight", 0);
             UIManager.put("TabbedPane.showTabSeparators", Boolean.TRUE);
+            UIManager.put("EditorTab.underlineAtTop", Boolean.TRUE);
             UIManager.put("SplitPaneDivider.style", "plain");
             UIManager.put("Tree.paintLines", Boolean.FALSE);
         } catch (Throwable ignored) {}
     }
 
     private static void renderFullWindow(
-            String code, AnalysisResult ar, String filename, String projectName, List<String> extraFiles,
-            int startLine, int endLine, int activeOffset, boolean withCursor, boolean withMarginGuide,
-            int jitterW, int jitterH, String nbHome, File outFile
+        String code, AnalysisResult ar, String filename, String projectName, List<String> extraFiles,
+        int startLine, int endLine, int caretLine, int caretCol, boolean withCursor, boolean withMarginGuide,
+        boolean showBottomDock, boolean showNavigator, double scale, int jitterW, int jitterH, String nbHome, File outFile
     ) throws Exception {
         setupFlatLafLight();
 
@@ -813,62 +1024,132 @@ public class NetBeansNativeRenderer {
         String javaSrcJar = nbHome + "\\java\\modules\\org-netbeans-modules-java-source.jar";
         String mavenJar = nbHome + "\\java\\modules\\org-netbeans-modules-maven.jar";
         String dbgUiJar = nbHome + "\\ide\\modules\\org-netbeans-spi-debugger-ui.jar";
+        String profilerJar = nbHome + "\\profiler\\modules\\org-netbeans-modules-profiler.jar";
+        String usersGuideJar = nbHome + "\\ide\\modules\\docs\\org-netbeans-modules-usersguide.jar";
         String openideActJar = nbHome + "\\platform\\modules\\org-openide-actions.jar";
         String openideLoadJar = nbHome + "\\platform\\modules\\org-openide-loaders.jar";
+        String javaNavJar = nbHome + "\\java\\modules\\org-netbeans-modules-java-navigation.jar";
+        String editorJar = nbHome + "\\ide\\modules\\org-netbeans-modules-editor.jar";
+        String multiViewJar = nbHome + "\\platform\\modules\\org-netbeans-core-multiview.jar";
 
         BufferedImage nbLogo = loadJarBitmap(nbCoreJar, "org/netbeans/core/startup/frame32_nb.gif");
         if (nbLogo == null) nbLogo = loadJarBitmap(nbCoreJar, "org/netbeans/core/startup/frame_nb.gif");
-        Icon icNewFile = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/newFile24.svg", "org/netbeans/modules/project/ui/resources/newFile24.png", 20);
-        Icon icNewProj = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/newProject24.svg", "org/netbeans/modules/project/ui/resources/newProject24.png", 20);
-        Icon icOpenProj = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/openProject24.svg", "org/netbeans/modules/project/ui/resources/openProject24.png", 20);
-        Icon icSaveAll = loadJarIcon(openideLoadJar, null, "org/openide/loaders/saveAll24.gif", 20);
-        Icon icUndo = loadJarIcon(openideActJar, null, "org/openide/resources/actions/undo24.gif", 20);
-        Icon icRedo = loadJarIcon(openideActJar, null, "org/openide/resources/actions/redo24.gif", 20);
-        Icon icBuild = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/buildProject24.svg", "org/netbeans/modules/project/ui/resources/buildProject24.png", 20);
-        Icon icCleanBuild = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/rebuildProject24.svg", "org/netbeans/modules/project/ui/resources/rebuildProject24.png", 20);
-        Icon icRun = loadJarIcon(projUiJar, null, "org/netbeans/modules/project/ui/resources/runProject24.png", 20);
-        Icon icDebug = loadJarIcon(dbgUiJar, null, "org/netbeans/modules/debugger/resources/debugProject24.png", 20);
 
-        Icon icProjTab = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/projectTab.svg", "org/netbeans/modules/project/ui/resources/projectTab.png", 14);
-        Icon icFilesTab = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/filesTab.svg", "org/netbeans/modules/project/ui/resources/filesTab.png", 14);
+        Icon icNewProj = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/newProject24.svg", "org/netbeans/modules/project/ui/resources/newProject24.png", 18);
+        Icon icNewFile = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/newFile24.svg", "org/netbeans/modules/project/ui/resources/newFile24.png", 18);
+        Icon icOpenProj = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/openProject24.svg", "org/netbeans/modules/project/ui/resources/openProject24.png", 18);
+        Icon icSaveAll = loadJarIcon(openideLoadJar, "org/openide/loaders/saveAll24.svg", "org/openide/loaders/saveAll24.gif", 18);
+        Icon icUndo = loadJarIcon(openideActJar, "org/openide/resources/actions/undo24.svg", "org/openide/resources/actions/undo24.gif", 18);
+        Icon icRedo = loadJarIcon(openideActJar, "org/openide/resources/actions/redo24.svg", "org/openide/resources/actions/redo24.gif", 18);
+
+        Icon icRunMainProj = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/runCurrentProject.svg", "org/netbeans/modules/project/ui/resources/runCurrentProject24.gif", 18);
+        Icon icBuild = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/buildProject24.svg", "org/netbeans/modules/project/ui/resources/buildProject24.png", 18);
+        Icon icCleanBuild = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/rebuildProject24.svg", "org/netbeans/modules/project/ui/resources/rebuildProject24.png", 18);
+        Icon icRun = loadJarIcon(projUiJar, "org/netbeans/modules/project/ui/resources/runProject24.svg", "org/netbeans/modules/project/ui/resources/runProject24.png", 18);
+        Icon icDebug = loadJarIcon(dbgUiJar, "org/netbeans/modules/debugger/resources/debugProject.svg", "org/netbeans/modules/debugger/resources/debugProject24.png", 18);
+        Icon icProfile = loadJarIcon(profilerJar, "org/netbeans/modules/profiler/impl/icons/start.svg", "org/netbeans/modules/profiler/impl/icons/start.png", 18);
+        Icon icTrash = loadJarIcon(usersGuideJar, null, "org/netbeans/modules/usersguide/img/trash-icon.png", 14);
 
         Icon icMavenProj = loadJarIcon(mavenJar, "org/netbeans/modules/maven/resources/Maven2Icon.svg", "org/netbeans/modules/maven/resources/Maven2Icon.gif", 16);
         Icon icPackage = loadJarIcon(javaProjUiJar, "org/netbeans/spi/java/project/support/ui/package.svg", "org/netbeans/spi/java/project/support/ui/package.gif", 16);
         Icon icJavaFile = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/resources/class.svg", "org/netbeans/modules/java/resources/class.png", 16);
+        Icon icInterface = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/resources/interface.svg", "org/netbeans/modules/java/resources/interface.png", 16);
         Icon icLibs = loadJarIcon(javaProjUiJar, "org/netbeans/modules/java/project/ui/resources/libraries.svg", "org/netbeans/modules/java/project/ui/resources/libraries.gif", 16);
+
+        // Navigator icons
+        Icon rawNavClass = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/resources/class.svg", "org/netbeans/modules/java/resources/class.png", 16);
+        final Icon icNavClass = rawNavClass != null ? rawNavClass : createCircleIcon(new Color(0x2E, 0x7D, 0x32), 16);
+        Icon rawNavConstructor = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/source/resources/icons/constructorPublic.svg", "org/netbeans/modules/java/source/resources/icons/constructorPublic.png", 16);
+        final Icon icNavConstructor = rawNavConstructor != null ? rawNavConstructor : createDiamondIcon(new Color(0xE8, 0xA8, 0x38), 16);
+        Icon rawNavMethod = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/source/resources/icons/methodPublic.svg", "org/netbeans/modules/java/source/resources/icons/methodPublic.png", 16);
+        final Icon icNavMethod = rawNavMethod != null ? rawNavMethod : createCircleIcon(new Color(0xE8, 0x60, 0x30), 16);
+        Icon rawNavField = loadJarIcon(javaSrcJar, "org/netbeans/modules/java/source/resources/icons/fieldPublic.svg", "org/netbeans/modules/java/source/resources/icons/fieldPublic.png", 16);
+        final Icon icNavField = rawNavField != null ? rawNavField : createCircleIcon(new Color(0x38, 0x80, 0xE8), 16);
+
+        // Navigator filter button icons
+        Icon icFilterFields = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/filterHideFields.png", 14);
+        Icon icFilterStatic = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/filterHideStatic.png", 14);
+        Icon icFilterNonPub = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/filterHideNonPublic.png", 14);
+        Icon icSortAlpha = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/sortAlpha.png", 14);
+        Icon icSortPos = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/sortPosition.png", 14);
+        Icon icHierarchy = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/hierarchy_window.png", 14);
+        Icon icRefresh = loadJarIcon(javaNavJar, null, "org/netbeans/modules/java/navigation/resources/hierarchy_refresh.png", 14);
+
+        // Editor micro-toolbar icons
+        Icon icNavBack = loadJarIcon(editorJar, null, "org/netbeans/modules/editor/resources/navigate_back_16.png", 14);
+        Icon icNavFwd = loadJarIcon(editorJar, null, "org/netbeans/modules/editor/resources/navigate_forward_16.png", 14);
+        Icon icMacroRec = loadJarIcon(editorJar, null, "org/netbeans/modules/editor/resources/start_macro_recording.png", 14);
+        Icon icMacroStop = loadJarIcon(editorJar, null, "org/netbeans/modules/editor/resources/stop_macro_recording.png", 14);
+        Icon icIndent = loadJarIcon(editorJar, null, "org/netbeans/modules/editor/resources/indentEngine.gif", 14);
+        Icon icSplitView = loadJarIcon(multiViewJar, null, "org/netbeans/core/multiview/resources/splitview.png", 14);
 
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(new Color(0xF2, 0xF2, 0xF2));
 
-        // Top section: Windows 11 Title bar + Menu bar + Main Toolbar
         JPanel northWrap = new JPanel();
         northWrap.setLayout(new BoxLayout(northWrap, BoxLayout.Y_AXIS));
+        northWrap.setBackground(new Color(0xF2, 0xF2, 0xF2));
 
-        // 1. Title bar
-        JPanel titleBar = new JPanel(new BorderLayout()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                Graphics2D g2 = (Graphics2D) g;
-                g2.setColor(new Color(0xE0, 0xE0, 0xE0));
-                g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
-            }
-        };
-        titleBar.setBackground(Color.WHITE);
-        titleBar.setPreferredSize(new Dimension(100, 30));
-        JPanel titleLeft = new JPanel(new BorderLayout(8, 0));
+        // ==========================================
+        // FEATURE 1: Unified 30px FlatTitlePane
+        // ==========================================
+        JPanel titlePane = new JPanel(new BorderLayout());
+        titlePane.setBackground(new Color(0xF2, 0xF2, 0xF2));
+        titlePane.setPreferredSize(new Dimension(1024, 30));
+        titlePane.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        titlePane.setBorder(new MatteBorder(0, 0, 1, 0, new Color(0xE5, 0xE5, 0xE5)));
+
+        // WEST: NetBeans Cube Logo + 13 Menus
+        JPanel titleLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         titleLeft.setOpaque(false);
-        titleLeft.setBorder(new EmptyBorder(4, 10, 4, 8));
-        if (nbLogo != null) {
-            titleLeft.add(new JLabel(new ImageIcon(nbLogo.getScaledInstance(16, 16, Image.SCALE_SMOOTH))), BorderLayout.WEST);
-        }
-        JLabel titleLbl = new JLabel(projectName + " - Apache NetBeans IDE 31");
-        titleLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        titleLbl.setForeground(new Color(0x1E, 0x1E, 0x1E));
-        titleLeft.add(titleLbl, BorderLayout.CENTER);
-        titleBar.add(titleLeft, BorderLayout.CENTER);
 
-        // Windows 11 caption buttons
+        JLabel logoLbl = new JLabel();
+        if (nbLogo != null) {
+            logoLbl.setIcon(new ImageIcon(nbLogo.getScaledInstance(16, 16, Image.SCALE_SMOOTH)));
+        }
+        logoLbl.setBorder(new EmptyBorder(7, 8, 7, 6));
+        titleLeft.add(logoLbl);
+
+        JMenuBar menuBar = new JMenuBar();
+        menuBar.setOpaque(false);
+        menuBar.setBorder(null);
+        String[] menus = {"File", "Edit", "View", "Navigate", "Source", "Refactor", "Run", "Debug", "Profile", "Team", "Tools", "Window", "Help"};
+        for (String m : menus) {
+            JMenu menu = new JMenu(m);
+            menu.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            menu.setOpaque(false);
+            menu.setBorder(new EmptyBorder(3, 4, 3, 4));
+            menuBar.add(menu);
+        }
+        titleLeft.add(menuBar);
+        titlePane.add(titleLeft, BorderLayout.WEST);
+
+        // CENTER: Centered Window Title
+        String windowTitle = projectName + " - Apache NetBeans IDE 31";
+        JLabel titleLabel = new JLabel(windowTitle, SwingConstants.CENTER);
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        titleLabel.setForeground(new Color(0x33, 0x33, 0x33));
+        titlePane.add(titleLabel, BorderLayout.CENTER);
+
+        // EAST: Search Box + Windows 11 Captions
+        JPanel titleRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        titleRight.setOpaque(false);
+
+        JTextField searchField = new JTextField();
+        searchField.putClientProperty("JTextField.placeholderText", "Search (Ctrl+I)");
+        searchField.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        searchField.setPreferredSize(new Dimension(145, 22));
+        searchField.setMaximumSize(new Dimension(145, 22));
+        searchField.setBorder(new CompoundBorder(
+            new LineBorder(new Color(0xC8, 0xC8, 0xC8), 1, true),
+            new EmptyBorder(1, 6, 1, 6)
+        ));
+
+        JPanel searchPad = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 4));
+        searchPad.setOpaque(false);
+        searchPad.add(searchField);
+        titleRight.add(searchPad);
+
         JPanel winBtns = new JPanel() {
             @Override
             public Dimension getPreferredSize() { return new Dimension(138, 30); }
@@ -888,66 +1169,189 @@ public class NetBeansNativeRenderer {
             }
         };
         winBtns.setOpaque(false);
-        titleBar.add(winBtns, BorderLayout.EAST);
-        northWrap.add(titleBar);
+        titleRight.add(winBtns);
+        titlePane.add(titleRight, BorderLayout.EAST);
 
-        // 2. Menu Bar
-        JMenuBar menuBar = new JMenuBar();
-        menuBar.setBackground(new Color(0xF7, 0xF7, 0xF7));
-        menuBar.setBorder(new MatteBorder(0, 0, 1, 0, new Color(0xE2, 0xE2, 0xE2)));
-        String[] menus = {"File", "Edit", "View", "Navigate", "Source", "Refactor", "Run", "Debug", "Profile", "Team", "Tools", "Window", "Help"};
-        for (String m : menus) {
-            JMenu jm = new JMenu(m);
-            jm.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-            menuBar.add(jm);
-        }
-        JPanel menuWrap = new JPanel(new BorderLayout());
-        menuWrap.add(menuBar, BorderLayout.CENTER);
-        northWrap.add(menuWrap);
+        northWrap.add(titlePane);
 
-        // 3. Main Toolbar
+        // ==========================================
+        // FEATURE 2: Main Toolbar Parity
+        // ==========================================
         JToolBar tb = new JToolBar();
         tb.setFloatable(false);
-        tb.setBackground(new Color(0xF5, 0xF5, 0xF5));
-        tb.setBorder(new CompoundBorder(new MatteBorder(0, 0, 1, 0, new Color(0xD9, 0xD9, 0xD9)), new EmptyBorder(3, 6, 3, 8)));
-        Icon[] tbIcons = {icNewFile, icNewProj, icOpenProj, icSaveAll, null, icUndo, icRedo, null, icBuild, icCleanBuild, icRun, icDebug};
-        String[] tbFallback = {"New", "NewProj", "Open", "Save", null, "Undo", "Redo", null, "Build", "Clean", "Run", "Debug"};
-        for (int i = 0; i < tbIcons.length; i++) {
-            if (tbIcons[i] == null) {
-                tb.addSeparator(new Dimension(10, 22));
-            } else {
-                JButton btn = new JButton(tbIcons[i]);
-                btn.setFocusable(false);
-                btn.setOpaque(false);
-                btn.setBorder(new EmptyBorder(3, 4, 3, 4));
-                if (btn.getIcon() == null) btn.setText(tbFallback[i]);
-                tb.add(btn);
-            }
+        tb.setBackground(new Color(0xF2, 0xF2, 0xF2));
+        tb.setPreferredSize(new Dimension(1024, 36));
+        tb.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
+        tb.setBorder(new CompoundBorder(
+            new MatteBorder(0, 0, 1, 0, new Color(0xD8, 0xD8, 0xD8)),
+            new EmptyBorder(2, 6, 2, 8)
+        ));
+
+        // Group 1: New File, New Project, Open Project, Save All
+        Icon[] grp1 = {icNewFile, icNewProj, icOpenProj, icSaveAll};
+        for (Icon ic : grp1) {
+            JButton btn = new JButton(ic);
+            btn.setFocusable(false);
+            btn.setOpaque(false);
+            btn.setBorder(new EmptyBorder(3, 4, 3, 4));
+            tb.add(btn);
         }
+
+        tb.addSeparator(new Dimension(8, 20));
+
+        // Group 2: Undo, Redo
+        Icon[] grp2 = {icUndo, icRedo};
+        for (Icon ic : grp2) {
+            JButton btn = new JButton(ic);
+            btn.setFocusable(false);
+            btn.setOpaque(false);
+            btn.setBorder(new EmptyBorder(3, 4, 3, 4));
+            tb.add(btn);
+        }
+
+        tb.addSeparator(new Dimension(8, 20));
+
+        // Group 3: <default config> Dropdown
+        JComboBox<String> configCombo = new JComboBox<>(new String[]{"<default config>"});
+        configCombo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        configCombo.setPreferredSize(new Dimension(125, 23));
+        configCombo.setMaximumSize(new Dimension(135, 23));
+        configCombo.setBackground(Color.WHITE);
+        configCombo.setFocusable(false);
+        tb.add(configCombo);
+
+        tb.add(Box.createHorizontalStrut(6));
+
+        // Group 4: Run Main, Build, CleanBuild, Run, Debug, Profile
+        Icon[] grp4 = {icRunMainProj, icBuild, icCleanBuild, icRun, icDebug, icProfile};
+        for (Icon ic : grp4) {
+            JButton btn = new JButton(ic);
+            btn.setFocusable(false);
+            btn.setOpaque(false);
+            btn.setBorder(new EmptyBorder(3, 4, 3, 4));
+            tb.add(btn);
+        }
+
         tb.add(Box.createHorizontalGlue());
-        JTextField searchBox = new JTextField("Search (Ctrl+I)");
-        searchBox.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        searchBox.setForeground(new Color(0x88, 0x88, 0x88));
-        searchBox.setMaximumSize(new Dimension(160, 24));
-        searchBox.setPreferredSize(new Dimension(160, 24));
-        tb.add(searchBox);
+
+        // Group 5: Heap Meter Component ("580,8/864,0MB") + Trash button
+        JPanel heapPanel = new JPanel(new BorderLayout(4, 0)) {
+            @Override
+            public Dimension getPreferredSize() { return new Dimension(145, 22); }
+            @Override
+            public Dimension getMaximumSize() { return new Dimension(145, 22); }
+        };
+        heapPanel.setOpaque(false);
+
+        JComponent heapGauge = new JComponent() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth();
+                int h = getHeight();
+
+                // Background
+                g2.setColor(new Color(0xCE, 0xE3, 0xE6));
+                g2.fillRoundRect(0, 1, w - 1, h - 3, 4, 4);
+
+                // Progress fill: 580.8 / 864.0 = ~67.2%
+                int fillW = (int) Math.round((w - 2) * (580.8 / 864.0));
+                g2.setColor(new Color(0x3B, 0x82, 0xF6));
+                g2.setClip(new RoundRectangle2D.Float(0, 1, w - 1, h - 3, 4, 4));
+                g2.fillRect(1, 2, fillW, h - 4);
+                g2.setClip(null);
+
+                // Outline
+                g2.setColor(new Color(0x9E, 0xB4, 0xCE));
+                g2.drawRoundRect(0, 1, w - 1, h - 3, 4, 4);
+
+                // Text
+                String text = "580,8/864,0MB";
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                FontMetrics fm = g2.getFontMetrics();
+                int tx = (w - fm.stringWidth(text)) / 2;
+                int ty = (h - fm.getHeight()) / 2 + fm.getAscent();
+                g2.setColor(new Color(0x22, 0x22, 0x22));
+                g2.drawString(text, tx, ty);
+                g2.dispose();
+            }
+        };
+        heapPanel.add(heapGauge, BorderLayout.CENTER);
+
+        JButton gcBtn = new JButton();
+        if (icTrash != null) {
+            gcBtn.setIcon(icTrash);
+        } else {
+            gcBtn.setIcon(new Icon() {
+                public int getIconWidth() { return 12; }
+                public int getIconHeight() { return 12; }
+                public void paintIcon(Component c, Graphics g, int x, int y) {
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setColor(new Color(0x66, 0x66, 0x66));
+                    g2.drawRect(x + 2, y + 3, 7, 7);
+                    g2.drawLine(x + 1, y + 2, x + 9, y + 2);
+                    g2.drawLine(x + 4, y + 1, x + 6, y + 1);
+                }
+            });
+        }
+        gcBtn.setToolTipText("Click to force garbage collection");
+        gcBtn.setFocusable(false);
+        gcBtn.setOpaque(false);
+        gcBtn.setBorder(new EmptyBorder(1, 2, 1, 2));
+        heapPanel.add(gcBtn, BorderLayout.EAST);
+
+        tb.add(heapPanel);
         northWrap.add(tb);
 
         root.add(northWrap, BorderLayout.NORTH);
 
-        // 4. Center SplitPane (Left Explorer + Right Editor)
+        // ==============================================================
+        // FEATURE 3: Left Explorer Vertical Split & Package Tree & Navigator
+        // ==============================================================
         DefaultMutableTreeNode treeRoot = new DefaultMutableTreeNode("Projects");
         DefaultMutableTreeNode projNode = new DefaultMutableTreeNode(projectName);
         DefaultMutableTreeNode srcPkgNode = new DefaultMutableTreeNode("Source Packages");
-        String pkgLabel = ar.packageName.isEmpty() ? "<default package>" : ar.packageName;
-        DefaultMutableTreeNode pkgNode = new DefaultMutableTreeNode(pkgLabel);
-        DefaultMutableTreeNode selectedFileNode = null;
+
+        // Subpackage categorization for nested package hierarchy
+        Map<String, List<String>> pkgMap = new LinkedHashMap<>();
         for (String ef : extraFiles) {
-            DefaultMutableTreeNode fnNode = new DefaultMutableTreeNode(ef);
-            pkgNode.add(fnNode);
-            if (ef.equals(filename)) selectedFileNode = fnNode;
+            String pkgName;
+            String baseName = new File(ef).getName();
+            if (ef.contains("/") || ef.contains("\\")) {
+                String normalized = ef.replace("\\", "/");
+                int lastSlash = normalized.lastIndexOf('/');
+                pkgName = normalized.substring(0, lastSlash).replace("/", ".");
+            } else {
+                if (baseName.contains("Controller")) {
+                    pkgName = "controller";
+                } else if (baseName.equals("Main.java")) {
+                    pkgName = "main";
+                } else if (baseName.contains("View")) {
+                    pkgName = "view";
+                } else if (!ar.packageName.isEmpty()) {
+                    pkgName = ar.packageName;
+                } else {
+                    pkgName = "model";
+                }
+            }
+            pkgMap.computeIfAbsent(pkgName, k -> new ArrayList<>()).add(baseName);
         }
-        srcPkgNode.add(pkgNode);
+
+        DefaultMutableTreeNode selectedFileNode = null;
+        for (Map.Entry<String, List<String>> entry : pkgMap.entrySet()) {
+            DefaultMutableTreeNode pkgFolder = new DefaultMutableTreeNode(entry.getKey());
+            for (String fileInPkg : entry.getValue()) {
+                DefaultMutableTreeNode fNode = new DefaultMutableTreeNode(fileInPkg);
+                pkgFolder.add(fNode);
+                if (fileInPkg.equals(filename) || fileInPkg.equals(new File(filename).getName())) {
+                    selectedFileNode = fNode;
+                }
+            }
+            srcPkgNode.add(pkgFolder);
+        }
+
         projNode.add(srcPkgNode);
         projNode.add(new DefaultMutableTreeNode("Dependencies"));
         projNode.add(new DefaultMutableTreeNode("Java Dependencies"));
@@ -969,10 +1373,17 @@ public class NetBeansNativeRenderer {
                 super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
                 String text = String.valueOf(value);
                 if (text.equals(projectName) && icMavenProj != null) setIcon(icMavenProj);
-                else if ((text.equals("Source Packages") || text.equals(pkgLabel)) && icPackage != null) setIcon(icPackage);
-                else if (text.endsWith(".java") && icJavaFile != null) setIcon(icJavaFile);
-                else if ((text.equals("Dependencies") || text.equals("Java Dependencies")) && icLibs != null) setIcon(icLibs);
-                else if (text.equals("Project Files")) {
+                else if (text.equals("Source Packages") || pkgMap.containsKey(text)) {
+                    if (icPackage != null) setIcon(icPackage);
+                } else if (text.endsWith(".java")) {
+                    if (text.startsWith("I") || text.contains("Interface")) {
+                        setIcon(icInterface != null ? icInterface : icJavaFile);
+                    } else if (icJavaFile != null) {
+                        setIcon(icJavaFile);
+                    }
+                } else if ((text.equals("Dependencies") || text.equals("Java Dependencies")) && icLibs != null) {
+                    setIcon(icLibs);
+                } else if (text.equals("Project Files")) {
                     Icon closed = UIManager.getIcon("Tree.closedIcon");
                     if (closed != null) setIcon(closed);
                 }
@@ -982,35 +1393,191 @@ public class NetBeansNativeRenderer {
             }
         });
 
-        JTabbedPane leftTabs = new JTabbedPane(JTabbedPane.TOP);
-        leftTabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        JTabbedPane leftTopTabs = new JTabbedPane(JTabbedPane.TOP);
+        leftTopTabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         JScrollPane treeScroll = new JScrollPane(projTree);
         treeScroll.setBorder(BorderFactory.createEmptyBorder());
-        leftTabs.addTab("Projects", icProjTab, treeScroll);
-        leftTabs.addTab("Files", icFilesTab, new JPanel());
-        leftTabs.addTab("Services", null, new JPanel());
-        leftTabs.setPreferredSize(new Dimension(245, 420));
+        leftTopTabs.addTab("Projects   \u00D7", treeScroll);
+        leftTopTabs.addTab("Files", new JPanel());
+        leftTopTabs.addTab("Favorites", new JPanel());
+        leftTopTabs.addTab("Services", new JPanel());
 
-        // Right Editor TabbedPane + Source|History Toolbar + EditorCanvas
-        EditorCanvas edCanvas = new EditorCanvas(code, ar, startLine, endLine, activeOffset, withCursor, withMarginGuide, jitterW, jitterH, nbHome, true);
+        // Navigator Pane
+        JPanel navPanel = new JPanel(new BorderLayout());
+        navPanel.setBackground(Color.WHITE);
+
+        JTabbedPane navTabs = new JTabbedPane(JTabbedPane.TOP);
+        navTabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+        JPanel navInner = new JPanel(new BorderLayout());
+        navInner.setBackground(Color.WHITE);
+
+        // Control strip: Members dropdown + Filter text
+        JPanel navCtrl = new JPanel(new BorderLayout(4, 0));
+        navCtrl.setBackground(new Color(0xF2, 0xF2, 0xF2));
+        navCtrl.setBorder(new EmptyBorder(3, 4, 3, 4));
+
+        JComboBox<String> navCombo = new JComboBox<>(new String[]{"Members"});
+        navCombo.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        navCombo.setPreferredSize(new Dimension(110, 22));
+        navCombo.setBackground(Color.WHITE);
+        navCombo.setFocusable(false);
+        navCtrl.add(navCombo, BorderLayout.WEST);
+
+        JTextField navFilter = new JTextField("<empty>");
+        navFilter.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        navFilter.setForeground(new Color(0x88, 0x88, 0x88));
+        navFilter.setPreferredSize(new Dimension(80, 22));
+        navCtrl.add(navFilter, BorderLayout.CENTER);
+
+        navInner.add(navCtrl, BorderLayout.NORTH);
+
+        // Navigator Members Tree
+        DefaultMutableTreeNode navRoot = new DefaultMutableTreeNode("NavRoot");
+        String activeClsName = ar.className.isEmpty() ? (filename.endsWith(".java") ? filename.substring(0, filename.length() - 5) : filename) : ar.className;
+        DefaultMutableTreeNode clsNode = new DefaultMutableTreeNode(activeClsName);
+        navRoot.add(clsNode);
+
+        for (MemberItem m : ar.members) {
+            if (m.kind != MemberItem.Kind.CLASS) {
+                clsNode.add(new DefaultMutableTreeNode(m));
+            }
+        }
+
+        JTree navTree = new JTree(navRoot);
+        navTree.setRootVisible(false);
+        navTree.setShowsRootHandles(true);
+        navTree.setRowHeight(20);
+        navTree.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        for (int r = 0; r < navTree.getRowCount(); r++) navTree.expandRow(r);
+
+        navTree.setCellRenderer(new DefaultTreeCellRenderer() {
+            @Override
+            public Component getTreeCellRendererComponent(JTree tree, Object value, boolean sel, boolean expanded, boolean leaf, int row, boolean hasFocus) {
+                super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus);
+                if (value instanceof DefaultMutableTreeNode dmt) {
+                    Object userObj = dmt.getUserObject();
+                    if (userObj instanceof MemberItem m) {
+                        setText(m.getDisplayLabel());
+                        if (m.kind == MemberItem.Kind.CONSTRUCTOR) {
+                            setIcon(icNavConstructor);
+                        } else if (m.kind == MemberItem.Kind.METHOD) {
+                            setIcon(icNavMethod);
+                        } else if (m.kind == MemberItem.Kind.FIELD) {
+                            setIcon(icNavField);
+                        }
+                    } else if (userObj.equals(activeClsName)) {
+                        setText(activeClsName);
+                        setIcon(icNavClass);
+                    }
+                }
+                return this;
+            }
+        });
+
+        JScrollPane navScroll = new JScrollPane(navTree);
+        navScroll.setBorder(BorderFactory.createEmptyBorder());
+        navInner.add(navScroll, BorderLayout.CENTER);
+
+        // Navigator bottom micro toolbar (7 filter buttons)
+        JPanel navBottomBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        navBottomBar.setBackground(new Color(0xF2, 0xF2, 0xF2));
+        navBottomBar.setBorder(new MatteBorder(1, 0, 0, 0, new Color(0xE0, 0xE0, 0xE0)));
+        Icon[] navIcons = {icFilterFields, icFilterStatic, icFilterNonPub, icSortAlpha, icSortPos, icHierarchy, icRefresh};
+        for (Icon ni : navIcons) {
+            JButton nbBtn = new JButton(ni);
+            nbBtn.setFocusable(false);
+            nbBtn.setOpaque(false);
+            nbBtn.setPreferredSize(new Dimension(20, 20));
+            nbBtn.setBorder(new EmptyBorder(1, 1, 1, 1));
+            navBottomBar.add(nbBtn);
+        }
+        navInner.add(navBottomBar, BorderLayout.SOUTH);
+
+        navTabs.addTab(filename + " - Navigator   \u00D7", navInner);
+        navPanel.add(navTabs, BorderLayout.CENTER);
+
+        JComponent leftComponent;
+        if (showNavigator) {
+            JSplitPane leftSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, leftTopTabs, navPanel);
+            leftSplit.setDividerLocation(245);
+            leftSplit.setDividerSize(4);
+            leftSplit.setBorder(BorderFactory.createEmptyBorder());
+            leftComponent = leftSplit;
+        } else {
+            leftComponent = leftTopTabs;
+        }
+        leftComponent.setPreferredSize(new Dimension(285, 420));
+
+        // ==============================================================
+        // FEATURE 4 & 5: Editor Multi-Tab, Overline, Micro-Toolbar & Canvas
+        // ==============================================================
+        EditorCanvas edCanvas = new EditorCanvas(
+            code, ar, startLine, endLine, caretLine, caretCol,
+            withCursor, withMarginGuide, jitterW, jitterH, nbHome, true
+        );
+        Dimension edDim = edCanvas.getPreferredSize();
+        int totalW = Math.max(1024, 290 + edDim.width + 16);
+        int totalH = Math.max(575, 120 + edDim.height + (showBottomDock ? 140 : 0));
+
         JPanel editorWrapper = new JPanel(new BorderLayout());
         editorWrapper.setBackground(Color.WHITE);
 
-        // Thin Editor Source|History bar
-        JPanel edToolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 2));
+        // Micro-toolbar strip directly below tabs
+        JPanel edToolbar = new JPanel(new BorderLayout());
         edToolbar.setBackground(new Color(0xF6, 0xF6, 0xF6));
         edToolbar.setBorder(new MatteBorder(0, 0, 1, 0, new Color(0xDF, 0xDF, 0xDF)));
+        edToolbar.setPreferredSize(new Dimension(100, 26));
+
+        JPanel edToolLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 2));
+        edToolLeft.setOpaque(false);
+
         JToggleButton btnSource = new JToggleButton("Source", true);
+        btnSource.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btnSource.setBackground(Color.WHITE);
+        btnSource.setBorder(new CompoundBorder(new LineBorder(new Color(0xC5, 0xC5, 0xC5)), new EmptyBorder(1, 6, 1, 6)));
+        btnSource.setFocusable(false);
+
         JToggleButton btnHistory = new JToggleButton("History", false);
-        btnSource.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         btnHistory.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        btnSource.setMargin(new Insets(1, 7, 1, 7));
-        btnHistory.setMargin(new Insets(1, 7, 1, 7));
-        edToolbar.add(btnSource);
-        edToolbar.add(btnHistory);
+        btnHistory.setOpaque(false);
+        btnHistory.setBorder(new EmptyBorder(1, 6, 1, 6));
+        btnHistory.setFocusable(false);
+
+        edToolLeft.add(btnSource);
+        edToolLeft.add(btnHistory);
+
+        // Action icons on micro toolbar
+        Icon[] microIcons = {icNavBack, icNavFwd, icIndent, icMacroRec, icMacroStop};
+        for (Icon mi : microIcons) {
+            if (mi != null) {
+                JButton mb = new JButton(mi);
+                mb.setFocusable(false);
+                mb.setOpaque(false);
+                mb.setBorder(new EmptyBorder(2, 3, 2, 3));
+                edToolLeft.add(mb);
+            }
+        }
+        edToolbar.add(edToolLeft, BorderLayout.WEST);
+
+        if (icSplitView != null) {
+            JPanel edToolRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2));
+            edToolRight.setOpaque(false);
+            JButton svBtn = new JButton(icSplitView);
+            svBtn.setFocusable(false);
+            svBtn.setOpaque(false);
+            svBtn.setBorder(new EmptyBorder(2, 3, 2, 3));
+            edToolRight.add(svBtn);
+            edToolbar.add(edToolRight, BorderLayout.EAST);
+        }
 
         editorWrapper.add(edToolbar, BorderLayout.NORTH);
-        editorWrapper.add(edCanvas, BorderLayout.CENTER);
+
+        // Center: Code Canvas + Right Error Stripe Scrollbar
+        JPanel centerCodePanel = new JPanel(new BorderLayout());
+        centerCodePanel.add(edCanvas, BorderLayout.CENTER);
+        centerCodePanel.add(new ErrorStripePanel(), BorderLayout.EAST);
+        editorWrapper.add(centerCodePanel, BorderLayout.CENTER);
 
         // Breadcrumb bar at bottom of editor
         JPanel breadcrumb = new JPanel(new BorderLayout());
@@ -1023,46 +1590,204 @@ public class NetBeansNativeRenderer {
         breadcrumb.add(bcLbl, BorderLayout.CENTER);
         editorWrapper.add(breadcrumb, BorderLayout.SOUTH);
 
-        JTabbedPane edTabs = new JTabbedPane(JTabbedPane.TOP);
+        // Editor Multi-Tab Pane with Blue Top Overline
+        JTabbedPane edTabs = new JTabbedPane(JTabbedPane.TOP) {
+            @Override
+            public void paint(Graphics g) {
+                super.paint(g);
+                int sel = getSelectedIndex();
+                if (sel >= 0) {
+                    Rectangle r = getBoundsAt(sel);
+                    if (r != null) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setColor(new Color(0x16, 0x83, 0xFB));
+                        g2.fillRect(r.x, r.y, r.width, 3);
+                        g2.dispose();
+                    }
+                }
+            }
+        };
         edTabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        edTabs.addTab(filename + "   \u00D7", icJavaFile, editorWrapper);
+        edTabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftTabs, edTabs);
-        split.setDividerLocation(245);
-        split.setDividerSize(4);
-        split.setBorder(new EmptyBorder(4, 4, 2, 4));
-        root.add(split, BorderLayout.CENTER);
+        for (String ef : extraFiles) {
+            String tabName = new File(ef).getName();
+            Icon tIcon = (tabName.startsWith("I") || tabName.contains("Interface")) ? icInterface : icJavaFile;
+            if (ef.equals(filename) || tabName.equals(filename) || tabName.equals(new File(filename).getName())) {
+                edTabs.addTab(tabName + "   \u00D7", tIcon, editorWrapper);
+                edTabs.setSelectedComponent(editorWrapper);
+            } else {
+                JPanel dummy = new JPanel();
+                dummy.setBackground(Color.WHITE);
+                edTabs.addTab(tabName + "   \u00D7", tIcon, dummy);
+            }
+        }
 
-        // 5. Bottom Status Bar
+        // Tab trailing navigation controls
+        JPanel tabControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 2)) {
+            @Override
+            public Dimension getPreferredSize() { return new Dimension(68, 26); }
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x70, 0x70, 0x70));
+                // Scroll left <
+                g2.drawLine(12, 13, 16, 9);
+                g2.drawLine(12, 13, 16, 17);
+                // Scroll right >
+                g2.drawLine(28, 9, 32, 13);
+                g2.drawLine(28, 17, 32, 13);
+                // Dropdown v
+                g2.drawLine(42, 11, 46, 15);
+                g2.drawLine(46, 15, 50, 11);
+                // Maximize []
+                g2.drawRect(56, 9, 8, 8);
+            }
+        };
+        tabControls.setOpaque(false);
+        edTabs.putClientProperty("JTabbedPane.trailingComponent", tabControls);
+
+        // ==============================================================
+        // FEATURE 6: Bottom Output Dock
+        // ==============================================================
+        JPanel outputDock = new JPanel(new BorderLayout());
+        outputDock.setBackground(Color.WHITE);
+
+        JTabbedPane outputTabs = new JTabbedPane(JTabbedPane.TOP);
+        outputTabs.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+        JPanel consoleWrap = new JPanel(new BorderLayout());
+        consoleWrap.setBackground(Color.WHITE);
+        consoleWrap.setBorder(new EmptyBorder(4, 6, 4, 6));
+
+        JTextArea consoleText = new JTextArea();
+        consoleText.setFont(new Font("Consolas", Font.PLAIN, 12));
+        consoleText.setEditable(false);
+        consoleText.setBackground(Color.WHITE);
+        consoleText.setForeground(new Color(0x33, 0x33, 0x33));
+
+        String mvnLog =
+            "cd " + (projectName.contains(":") || projectName.contains("\\") ? projectName : "C:\\Users\\fritz\\Desktop\\" + projectName) + "; \"JAVA_HOME=C:\\\\Program Files\\\\Java\\\\jdk-21\" cmd /c \"\"\"C:\\\\Program Files\\\\Apache NetBeans\\\\java\\\\maven\\\\bin\\\\mvn.cmd\"\" -Dexec.vmArgs= \"\"-Dexec.args=-classpath %classpath " + (ar.packageName.isEmpty() ? "" : ar.packageName + ".") + (ar.className.isEmpty() ? "Main" : ar.className) + "\"\" -Dexec.appArgs= -Dexec.mainClass=" + (ar.packageName.isEmpty() ? "" : ar.packageName + ".") + (ar.className.isEmpty() ? "Main" : ar.className) + " -Dexec.executable=\"\"C:\\\\Program Files\\\\Java\\\\jdk-21\\\\bin\\\\java.exe\"\" process-classes org.codehaus.mojo:exec-maven-plugin:3.1.0:exec\"\n" +
+            "Scanning for projects...\n\n" +
+            "-----------------------< " + (ar.packageName.isEmpty() ? "com.mycompany" : ar.packageName) + ":" + projectName.toLowerCase().replace(" ", "-") + " >------------------------\n" +
+            "Building " + projectName + " 1.0-SNAPSHOT\n" +
+            "  from pom.xml\n" +
+            "--------------------------------[ jar ]---------------------------------\n";
+
+        consoleText.setText(mvnLog);
+        consoleWrap.add(consoleText, BorderLayout.CENTER);
+        outputTabs.addTab("Output   \u00D7", consoleWrap);
+
+        JPanel dockControls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 2)) {
+            @Override
+            public Dimension getPreferredSize() { return new Dimension(48, 24); }
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x60, 0x60, 0x60));
+                // Minimize (-)
+                g2.drawLine(8, 14, 16, 14);
+                // Maximize/Popout
+                g2.drawRect(28, 7, 8, 8);
+                g2.drawLine(28, 9, 36, 9);
+            }
+        };
+        dockControls.setOpaque(false);
+        outputTabs.putClientProperty("JTabbedPane.trailingComponent", dockControls);
+        outputDock.add(outputTabs, BorderLayout.CENTER);
+        outputDock.setPreferredSize(new Dimension(600, 140));
+
+        JComponent rightComponent;
+        if (showBottomDock) {
+            int centerH = totalH - 86;
+            JSplitPane rightSplit = new JSplitPane(JSplitPane.VERTICAL_SPLIT, edTabs, outputDock);
+            rightSplit.setDividerLocation(Math.max(200, centerH - 145));
+            rightSplit.setDividerSize(4);
+            rightSplit.setBorder(BorderFactory.createEmptyBorder());
+            rightComponent = rightSplit;
+        } else {
+            rightComponent = edTabs;
+        }
+
+        JSplitPane centerSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, leftComponent, rightComponent);
+        centerSplit.setDividerLocation(285);
+        centerSplit.setDividerSize(4);
+        centerSplit.setBorder(new EmptyBorder(2, 4, 2, 4));
+        root.add(centerSplit, BorderLayout.CENTER);
+
+        // ==============================================================
+        // FEATURE 7: Segmented Status Bar
+        // ==============================================================
         JPanel statusBar = new JPanel(new BorderLayout());
         statusBar.setBackground(new Color(0xF2, 0xF2, 0xF2));
-        statusBar.setBorder(new CompoundBorder(new MatteBorder(1, 0, 0, 0, new Color(0xD8, 0xD8, 0xD8)), new EmptyBorder(2, 10, 2, 12)));
-        JLabel statusLeft = new JLabel(" ");
+        statusBar.setBorder(new CompoundBorder(
+            new MatteBorder(1, 0, 0, 0, new Color(0xC6, 0xC6, 0xC6)),
+            new EmptyBorder(1, 8, 1, 8)
+        ));
+        statusBar.setPreferredSize(new Dimension(100, 20));
+
+        JLabel statusLeft = new JLabel("  Ready");
         statusLeft.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        String[] codeLines = code.split("\n", -1);
-        int visStart = Math.max(1, startLine);
-        int visEnd = (endLine <= 0 || endLine > codeLines.length) ? codeLines.length : endLine;
-        int visCount = Math.max(1, visEnd - visStart + 1);
-        int activeIdx = (activeOffset >= 0 && activeOffset < visCount) ? (visStart - 1 + activeOffset) : (visEnd - 1);
-        int activeCol = (activeIdx >= 0 && activeIdx < codeLines.length) ? (codeLines[activeIdx].length() + 1) : 1;
-        JLabel statusRight = new JLabel("Line " + (activeIdx + 1) + ", Col " + activeCol + "    |    INS");
-        statusRight.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        statusRight.setForeground(new Color(0x40, 0x40, 0x40));
-        statusRight.setHorizontalAlignment(SwingConstants.RIGHT);
+        statusLeft.setForeground(new Color(0x55, 0x55, 0x55));
         statusBar.add(statusLeft, BorderLayout.WEST);
-        statusBar.add(statusRight, BorderLayout.CENTER);
+
+        JPanel statusRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        statusRight.setOpaque(false);
+
+        Font fontStatus = new Font("Segoe UI", Font.PLAIN, 11);
+        Color colStatusText = new Color(0x38, 0x38, 0x38);
+        Border cellBorder = new CompoundBorder(
+            new MatteBorder(0, 1, 0, 0, new Color(0xD0, 0xD0, 0xD0)),
+            new EmptyBorder(0, 8, 0, 8)
+        );
+
+        JLabel cellPos = new JLabel(caretLine + ":" + caretCol);
+        cellPos.setFont(fontStatus);
+        cellPos.setForeground(colStatusText);
+        cellPos.setBorder(cellBorder);
+        statusRight.add(cellPos);
+
+        JLabel cellIns = new JLabel("INS");
+        cellIns.setFont(fontStatus);
+        cellIns.setForeground(colStatusText);
+        cellIns.setBorder(cellBorder);
+        statusRight.add(cellIns);
+
+        boolean isCrLf = code.contains("\r\n");
+        JLabel cellEnding = new JLabel(isCrLf ? "Windows (CRLF)" : "Unix (LF)");
+        cellEnding.setFont(fontStatus);
+        cellEnding.setForeground(colStatusText);
+        cellEnding.setBorder(cellBorder);
+        statusRight.add(cellEnding);
+
+        JLabel cellEncoding = new JLabel("UTF-8");
+        cellEncoding.setFont(fontStatus);
+        cellEncoding.setForeground(colStatusText);
+        cellEncoding.setBorder(new CompoundBorder(
+            new MatteBorder(0, 1, 0, 0, new Color(0xD0, 0xD0, 0xD0)),
+            new EmptyBorder(0, 8, 0, 4)
+        ));
+        statusRight.add(cellEncoding);
+
+        statusBar.add(statusRight, BorderLayout.EAST);
         root.add(statusBar, BorderLayout.SOUTH);
 
-        Dimension edDim = edCanvas.getPreferredSize();
-        int totalW = Math.max(1020, 260 + edDim.width);
-        int totalH = Math.max(620, 215 + edDim.height);
+        // ==============================================================
+        // FEATURE 8: Raster Scale
+        // ==============================================================
         root.setSize(totalW, totalH);
         layoutRecursive(root);
 
-        double scale = 1.25;
-        BufferedImage img = new BufferedImage((int) Math.round(totalW * scale), (int) Math.round(totalH * scale), BufferedImage.TYPE_INT_RGB);
+        double effScale = scale > 0 ? scale : 1.0;
+        BufferedImage img = new BufferedImage((int) Math.round(totalW * effScale), (int) Math.round(totalH * effScale), BufferedImage.TYPE_INT_RGB);
         Graphics2D g = img.createGraphics();
-        g.scale(scale, scale);
+        if (effScale != 1.0) {
+            g.scale(effScale, effScale);
+        }
         root.paint(g);
         g.dispose();
 

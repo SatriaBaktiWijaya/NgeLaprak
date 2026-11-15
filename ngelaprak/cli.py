@@ -63,6 +63,19 @@ def main():
     parser_render.add_argument("--out", default="screenshot.png", help="Path output gambar")
     parser_render.add_argument("--start", type=int, default=1, help="Baris awal")
     parser_render.add_argument("--end", type=int, default=None, help="Baris akhir")
+    parser_render.add_argument("--active-offset", type=int, default=None, help="Offset baris aktif relatif terhadap baris awal")
+    parser_render.add_argument("--no-margin-guide", action="store_true", default=False, help="Sembunyikan garis panduan margin kolom 80")
+    parser_render.add_argument("--no-cursor", action="store_true", default=False, help="Sembunyikan kursor/caret")
+    parser_render.add_argument("--tag", default=None, help="Author tag untuk disisipkan jika start_line == 1")
+    parser_render.add_argument("--extra-files", default=None, help="Daftar berkas ekstra dipisah koma (misal: a.java,b.java)")
+    parser_render.add_argument("--sourcepath", default=None, help="Direktori root package source Java")
+    parser_render.add_argument("--scale", type=float, default=1.0, help="Faktor skala raster (default: 1.0)")
+    parser_render.add_argument("--caret", default=None, help="Posisi kursor dalam format 'LINE:COL' (misal: '1:1', '5:10')")
+    parser_render.add_argument("--caret-line", type=int, default=1, help="Baris posisi kursor (default: 1)")
+    parser_render.add_argument("--caret-col", type=int, default=1, help="Kolom posisi kursor (default: 1)")
+    parser_render.add_argument("--hide-bottom-dock", action="store_true", default=False, help="Sembunyikan dock bawah (Output di NetBeans, Logs & others di Code::Blocks)")
+    parser_render.add_argument("--hide-navigator", action="store_true", default=False, help="Sembunyikan panel Navigator di NetBeans")
+    parser_render.add_argument("--show-changebar", action="store_true", default=False, help="Tampilkan margin changebar hijau di Code::Blocks")
 
     # Command: simulate-cli
     parser_sim = subparsers.add_parser("simulate-cli", help="Simulasi dan render screenshot terminal interaktif (multi-step input)")
@@ -150,15 +163,52 @@ def main():
 
         fname = args.filename or os.path.basename(abs_file)
         file_dir = os.path.dirname(abs_file)
-        exts = (".java",) if args.ide == "netbeans" else (".cpp", ".c", ".cc", ".h", ".hpp")
-        siblings = sorted(n for n in os.listdir(file_dir) if n.lower().endswith(exts))[:8] if os.path.isdir(file_dir) else [fname]
-        extra_files = [fname] + [s for s in siblings if s != fname]
 
-        sourcepath = None
-        norm_dir = file_dir.replace("\\", "/")
-        marker = "/src/main/java"
-        if marker in norm_dir:
-            sourcepath = file_dir[: norm_dir.index(marker) + len(marker)]
+        if args.extra_files:
+            if isinstance(args.extra_files, str):
+                custom_extras = [f.strip() for f in args.extra_files.split(",") if f.strip()]
+            else:
+                custom_extras = list(args.extra_files)
+            if fname not in custom_extras:
+                custom_extras.insert(0, fname)
+            extra_files = custom_extras
+        else:
+            exts = (".java",) if args.ide == "netbeans" else (".cpp", ".c", ".cc", ".h", ".hpp")
+            siblings = sorted(n for n in os.listdir(file_dir) if n.lower().endswith(exts))[:8] if os.path.isdir(file_dir) else [fname]
+            extra_files = [fname] + [s for s in siblings if s != fname]
+
+        sourcepath = args.sourcepath
+        if not sourcepath:
+            norm_dir = file_dir.replace("\\", "/")
+            marker = "/src/main/java"
+            if marker in norm_dir:
+                sourcepath = file_dir[: norm_dir.index(marker) + len(marker)]
+
+        # Caret coordinates parsing
+        caret_line = args.caret_line
+        caret_col = args.caret_col
+        if args.caret:
+            try:
+                caret_str = args.caret.strip()
+                if ":" in caret_str:
+                    parts = caret_str.split(":", 1)
+                    caret_line = int(parts[0].strip())
+                    caret_col = int(parts[1].strip())
+                elif "," in caret_str:
+                    parts = caret_str.split(",", 1)
+                    caret_line = int(parts[0].strip())
+                    caret_col = int(parts[1].strip())
+                else:
+                    caret_line = int(caret_str)
+            except Exception as e:
+                print(f"[!] Warning: Gagal mengurai format --caret '{args.caret}', menggunakan caret_line={caret_line}, caret_col={caret_col}: {e}")
+
+        with_cursor = not getattr(args, "no_cursor", False)
+        with_margin_guide = not getattr(args, "no_margin_guide", False)
+        show_bottom_dock = not getattr(args, "hide_bottom_dock", False)
+        show_navigator = not getattr(args, "hide_navigator", False)
+        show_changebar = bool(getattr(args, "show_changebar", False))
+        scale = float(getattr(args, "scale", 1.0))
 
         if args.ide == "netbeans":
             render_netbeans_code(
@@ -167,10 +217,19 @@ def main():
                 start_line=args.start,
                 end_line=args.end,
                 out_path=args.out,
+                active_line_offset=args.active_offset,
+                with_margin_guide=with_margin_guide,
+                with_cursor=with_cursor,
+                author_tag=args.tag,
                 view=args.view,
                 project_name=args.project,
                 extra_files=extra_files,
                 sourcepath=sourcepath,
+                caret_line=caret_line,
+                caret_col=caret_col,
+                show_bottom_dock=show_bottom_dock,
+                show_navigator=show_navigator,
+                scale=scale,
             )
         elif args.ide == "codeblocks":
             render_codeblocks_code(
@@ -178,10 +237,17 @@ def main():
                 start_line=args.start,
                 end_line=args.end,
                 out_path=args.out,
+                with_cursor=with_cursor,
+                author_tag=args.tag,
                 view=args.view,
                 filename=fname,
                 project_name=args.project,
                 extra_files=extra_files,
+                caret_line=caret_line,
+                caret_col=caret_col,
+                show_bottom_dock=show_bottom_dock,
+                show_changebar=show_changebar,
+                scale=scale,
             )
         elif args.ide == "vscode":
             render_vscode_code(content, filename=fname, theme=args.theme, start_line=args.start, end_line=args.end, out_path=args.out)

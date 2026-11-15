@@ -1,15 +1,29 @@
 import os
+import re
 import subprocess
 import html
 from PIL import Image, ImageChops
 
 CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
+def format_terminal_line(l):
+    if not l:
+        return "&nbsp;"
+    escaped = html.escape(str(l)).replace(" ", "&nbsp;")
+    escaped = re.sub(r'\[\[INPUT\]\](.*?)\[\[/INPUT\]\]', r'<span style="color:#ffffff; font-weight:bold; background:rgba(255,255,255,0.12); padding:0 3px; border-radius:2px;">\1</span>', escaped)
+    escaped = re.sub(r'\[\[HEADER\]\](.*?)\[\[/HEADER\]\]', r'<span style="color:#e5c07b; font-weight:bold;">\1</span>', escaped)
+    escaped = re.sub(r'\[\[SUCCESS\]\](.*?)\[\[/SUCCESS\]\]', r'<span style="color:#98c379; font-weight:bold;">\1</span>', escaped)
+    escaped = re.sub(r'\[\[MUTED\]\](.*?)\[\[/MUTED\]\]', r'<span style="color:#6c757d; font-style:italic;">\1</span>', escaped)
+    escaped = re.sub(r'\[\[PROMPT\]\](.*?)\[\[/PROMPT\]\]', r'<span style="color:#61afef;">\1</span>', escaped)
+    return escaped
+
 def render_terminal_output(title_text, lines, out_path="terminal_shot.png", mode="windows_terminal"):
     """
-    Renders an authentic Windows Terminal or CMD/MySQL client window.
+    Renders an authentic Windows Terminal or CMD/MySQL client window with optional token styling.
     """
-    body_content = "<br>".join(html.escape(l).replace(" ", "&nbsp;") if l else "&nbsp;" for l in lines)
+    out_path = os.path.abspath(out_path)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    body_content = "<br>".join(format_terminal_line(l) for l in lines)
     disp_title = html.escape(title_text)
     temp_html = os.path.abspath(out_path + ".temp.html")
     
