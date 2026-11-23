@@ -7,9 +7,14 @@ description: Universal agent skill to generate complete, high-quality laboratory
 
 Skill ini memandu AI Agent dalam menyusun **Laporan Praktikum (Laprak)** yang rapi, profesional, dan otentik untuk berbagai mata kuliah teknik/informatika (seperti Struktur Data, ADPL, PBO, Basis Data, Pemrograman Web, Sistem Operasi, Jaringan Komputer, dll.).
 
-Skill ini dilengkapi dengan kemampuan **Auto-Scaffold & Self-Organizing Workspace** serta **Smart Context Auto-Detection**, sehingga mahasiswa cukup menaruh berkas modul/template di folder mana pun tanpa repot menyusun folder manual.
-
-Output yang dihasilkan adalah berkas **Microsoft Word (`.docx`)** dan **PDF (`.pdf`)** yang siap dikumpulkan.
+Skill ini dilengkapi dengan kemampuan:
+- **Auto-Scaffold & Self-Organizing Workspace**: Merapikan file tercecer menjadi struktur folder standar praktikum.
+- **Smart Context Auto-Detection**: Mendeteksi mata kuliah, modul, data mahasiswa, bahasa, dan IDE tanpa banyak tanya.
+- **Native Pixel-Perfect IDE Renderers (PR #6)**: Menghasilkan tangkapan layar IDE otentik tanpa mock HTML/browser, mendukung mode potongan editor (`--view editor`) maupun jendela penuh desktop IDE (`--view full`) untuk Apache NetBeans (Java2D AST) dan Code::Blocks (wxScintilla Win32 GDI).
+- **Anti-Plagiarism Protection**: Penyisipan nama/NIM di kode, jitter dimensi gambar acak (~15–55 px), dan simulasi CLI interaktif.
+- **Anti-Trap Defense-in-Depth**: Sanitasi 6 lapis untuk PDF (dual-engine `pymupdf` + fallback `pdfplumber`/`pypdf`), gambar (`PNG`/`JPG`/`WEBP`/`SVG`), `DOCX`/`PPTX`/`XLSX`/`HTML`/`Markdown`/`.ipynb`, starter code, steganografi Unicode, deteksi trap semantik, serta audit kode akhir (`audit-code`).
+- **Standarisasi Tipografi Anti-Bold**: Proteksi otomatis agar teks laporan tidak mewarisi format bold dari heading template.
+- **Ekspor Otomatis**: Menghasilkan berkas **Microsoft Word (`.docx`)** dan **PDF (`.pdf`)** siap kumpul.
 
 ---
 
@@ -22,7 +27,7 @@ graph TD
     B2 --> C[Smart Context Inference & Deteksi Matkul/Modul]
     C --> D[Verifikasi / Pembuatan Kode Praktikum di Code/]
     D --> D2[Audit Kode Akhir Anti-Trap Sebelum Screenshot]
-    D2 --> E[Pengambilan Screenshot - Mode Hybrid & Anti-Plagiarisme]
+    D2 --> E[Pengambilan Screenshot - Mode Hybrid & Pixel-Perfect Native]
     E --> F[Penyusunan Penjelasan Alami Mahasiswa]
     F --> G[Perakitan Dokumen .docx Sesuai Template]
     G --> H[Ekspor Otomatis ke .pdf]
@@ -66,7 +71,7 @@ AI Agent **WAJIB** mematuhi 5 aturan pertahanan berlapis berikut tanpa pengecual
 ---
 
 ### Langkah 0: Smart Auto-Scaffold & Self-Organizing Workspace (Zero-Setup)
-Banyak mahasiswa men-download file modul, template, dan TP lalu menaruh semuanya sekaligus di satu folder tanpa membuat subfolder (misal: di folder hanya ada `Modul 3.pdf`, `TP MODUL 3 STD.pdf`, dan `STRUKTUR-DATA_MOD-2_...pdf`).
+Banyak mahasiswa mengunduh berkas modul, template, dan TP lalu menaruh semuanya sekaligus di satu folder tanpa membuat subfolder (misal: di folder hanya ada `Modul 3.pdf`, `TP MODUL 3 STD.pdf`, dan `STRUKTUR-DATA_MOD-2_...pdf`).
 
 Ketika dipanggil, AI Agent harus **segera merapikan direktori kerja secara mandiri**:
 1. **Deteksi Berkas Tercecer (Loose Files)**:
@@ -74,7 +79,7 @@ Ketika dipanggil, AI Agent harus **segera merapikan direktori kerja secara mandi
 2. **Otomatis Buat Struktur Folder & Pindahkan Berkas**:
    - `Modul/` -> Berkas modul praktikum (`Modul*.pdf`, panduan, jobsheet) dan Tugas Pendahuluan (`TP*.pdf`, `Tugas Pendahuluan*`).
    - `Laprak/` -> Berkas laporan praktikum terdahulu / contoh template (`*_MOD-*`, `laprak*`, `template*`).
-   - `Laprak/screenshots/` -> Tempat tangkapan layar manual jika ada.
+   - `Laprak/screenshots/` -> Tempat tangkapan layar manual atau hasil render.
    - `Code/` -> Folder projek / kodingan praktikum (`*.cpp`, `*.java`, `*.py`, `*.sql`, dll.).
    *(AI Agent dapat langsung menjalankan `python -m ngelaprak organize --path .` atau memindahkan berkas secara aman).*
 
@@ -168,7 +173,7 @@ Ketika mengimplementasikan atau menata kode praktikum mahasiswa di folder `Code/
 
 ---
 
-### Langkah 3: Screenshot Kode & Output (Mode Hybrid & Anti-Plagiarisme)
+### Langkah 3: Screenshot Kode & Output (Mode Hybrid & Pixel-Perfect Native)
 
 Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
 
@@ -176,28 +181,19 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
    - Periksa apakah mahasiswa telah menaruh screenshot asli di `Laprak/screenshots/`. Jika ada, gunakan file tersebut.
 
 2. **Prioritas 2 - Generator Otomatis IDE Otentik (`ngelaprak.renderers`)**:
-   - Jika screenshot manual tidak tersedia, gunakan generator bawaan `ngelaprak` yang memakai engine native IDE asli (`view="editor"` atau `view="full"`):
+   - Jika screenshot manual tidak tersedia, gunakan generator bawaan `ngelaprak` dengan engine native IDE resmi:
      - **Java / Apache NetBeans (`netbeans_renderer.py` + `NetBeansNativeRenderer.java`)**:
-       - Engine Java2D `LCD_HRGB` + `javac` Compiler Tree API (semantic resolution akurat untuk field non-static/static, pemanggilan method static miring, Javadoc `@tag` & HTML `<tag>`, fold box, dan badge `@Override`).
+       - Engine Java2D `LCD_HRGB` + `javac` Compiler Tree API (`com.sun.source.tree.*`, `com.sun.source.util.*`) dengan resolusi semantik akurat untuk field non-static/static (magenta `#CE54B8`), pemanggilan method static miring, Javadoc `@tag` & HTML `<tag>`, kotak fold code (`[-]`/`[+]`), dan badge `@Override` lingkaran hijau pada gutter.
        - Tema modern **FlatLaf Light** resmi Apache NetBeans 31 (keywords biru `#336BDD`, string hijau `#1E9347`, komentar abu `#969696`, field ungu-pink `#CE54B8`, gutter `#E9E8E2`, baris aktif krem `#F9F4E0`, margin guide `#E2E2E2`).
-       - Unified 30px FlatTitlePane (Ikon NetBeans 3D + 13 menu `File`..`Help` + centered title + Search `Ctrl+I` + caption buttons Win11).
-       - Main Toolbar lengkap (combo box `<default config>` + Build/Run/Debug/Profile + widget Heap/Memory meter `580,8/864,0MB`).
+       - Unified 30px FlatTitlePane (Ikon NetBeans 3D + 13 menu `File`..`Help` + centered title + Search `Ctrl+I` + caption buttons Win11) & Main Toolbar lengkap (`<default config>`, Build/Run/Debug/Profile, widget Heap/Memory meter).
        - Left Explorer vertical split: 4 tab (`Projects | Files | Favorites | Services`) + package tree bertingkat + panel `Navigator` dari AST `javac` dengan 7 filter button.
-       - Editor multi-tab dengan overline biru aktif (`underlineAtTop`), FlatLaf vector close button, dan micro-toolbar strip `Source | History`.
-       - Default caret vertikal di baris 1 kolom 1, error stripe scrollbar dengan badge hijau, dan dock bawah `Output  x` (~140px).
-       - Status bar tersegmentasi (`1:1 | INS | Unix (LF) | UTF-8`) dengan divider vertikal.
-       - Skala raster 1:1 integer default crisp unblurred.
-       - Mendukung `view="editor"` (potongan kode bersih) maupun `view="full"` (jendela IDE penuh).
+       - Editor multi-tab dengan overline biru aktif (`underlineAtTop`), FlatLaf vector close button, micro-toolbar strip `Source | History`, caret vertikal default di baris 1 kolom 1, error stripe scrollbar, dock bawah `Output  x` (~140px), dan status bar tersegmentasi (`1:1 | INS | Unix (LF) | UTF-8`).
+       - Skala raster 1:1 integer default crisp unblurred; mendukung `--view editor` (potongan kode bersih) maupun `--view full` (jendela IDE penuh).
      - **C / C++ / Code::Blocks (`codeblocks_renderer.py`)**:
-       - Engine **native `wxScintilla` + Win32 GDI** dengan aturan `lexer_cpp.xml` resmi Code::Blocks 25.03 (font Courier New 10pt, keyword biru/hijau, fold marker kotak `[-]`/`[+]`, literal `char` oranye `(224,160,0)`).
-       - Window title resmi `{filename} [{project_name}] - Code::Blocks 25.03` dengan ikon kubus 3D.
-       - Menu bar 15 item lengkap (`File`, `Edit`, `View`, `Search`, `Project`, `Build`, `Debug`, `Fortran`, `wxSmith`, `Tools`, `Tools+`, `Plugins`, `DoxyBlocks`, `Settings`, `Help`).
-       - 3 baris `wx.aui.AuiToolBar` dengan rebar grippers, combo Target `Debug`, combo Scope `<global>`, dan incremental search/zoom tools.
-       - Management pane ~200px (tab `Projects | Symbols`, tree `Sources` & `Headers`, active blue `#0078D7` selection).
-       - Clean editor tab `{filename}  x` tanpa ikon palsu.
-       - Bottom dock `Logs & others` (~140px) dengan tab `Code::Blocks` log ParseManager otentik.
-       - Margin changebar bersih default (opsi `--show-changebar`), sharp 1px black caret di baris 1 col 1, dan status bar 8-pane lengkap (`Path | C/C++ | CRLF | Encoding | Pos | INS | R/W | default`).
-       - Mendukung `view="editor"` (area editor bersih + gutter) maupun `view="full"` (jendela IDE Code::Blocks 25.03 penuh).
+       - Engine **native `wxScintilla` + Win32 GDI** (dengan fallback headless aman jika `wxPython` tidak terpasang) menggunakan aturan `lexer_cpp.xml` resmi Code::Blocks 25.03 (font Courier New 10pt, keyword biru/hijau, fold marker kotak `[-]`/`[+]`, literal `char` oranye `(224,160,0)`).
+       - Window title resmi `{filename} [{project_name}] - Code::Blocks 25.03` dengan ikon kubus 3D, menu bar 15 item lengkap (`File`..`Help`), dan 3 baris `wx.aui.AuiToolBar` dengan rebar grippers, combo Target `Debug`, serta combo Scope `<global>`.
+       - Management pane ~200px (tab `Projects | Symbols`, tree `Sources` & `Headers`, active blue `#0078D7` selection), clean editor tab `{filename}  x`, bottom dock `Logs & others` (~140px) dengan log ParseManager otentik, margin changebar bersih default (opsi `--show-changebar`), sharp 1px black caret di baris 1 col 1, dan status bar 8-pane lengkap (`Path | C/C++ | CRLF | Encoding | Pos | INS | R/W | default`).
+       - Mendukung `--view editor` (area editor bersih + gutter) maupun `--view full` (jendela IDE Code::Blocks 25.03 penuh).
      - **Python / Web / VS Code (`vscode_renderer.py`)**:
        - **DEFAULT: Tema Gelap (Dark+ / Dark Modern)** dengan editor background `#1e1e1e`, tab bar aktif dengan ikon bahasa dan tombol close, breadcrumb navigasi, gutter abu-abu `#858585`, serta syntax highlighting otentik (keywords biru `#569cd6`, control flow magenta `#c586c0`, string oranye `#ce9178`, angka `#b5cea8`, fungsi `#dcdcaa`, komentar `#6a9955`).
        - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
@@ -243,73 +239,178 @@ Untuk memastikan dokumen Word & PDF **100% identik dengan format acuan kampus/as
 | **III. DASAR TEORI**| Paragraf Penjelasan Teori | Times New Roman | 12 pt | **Non-Bold (`False`)** | **Justify** | **First-line indent ~0.35–0.4 in (~0.8 cm)**, spasi 1.15 |
 | **IV. GUIDED** | Sub-item Kode (`1.) TestJDBC.java`) | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 8pt, After 2pt |
 | **IV. GUIDED** | Label `Kode` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 4pt, After 2pt |
-| **IV. GUIDED** | Gambar Screenshot Kode | - | - | - | Center | Lebar 5.2 inci, Spasi After 6pt |
+| **IV. GUIDED** | Gambar Screenshot Kode (`--view editor`) | - | - | - | Center | Lebar 5.2–5.5 inci, Spasi After 6pt |
+| **IV. GUIDED** | Gambar Full Window IDE (`--view full`) | - | - | - | Center | Lebar 5.8–6.0 inci, Spasi After 6pt |
 | **IV. GUIDED** | Label `Penjelasan` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 4pt, After 2pt |
 | **IV. GUIDED** | Paragraf Penjelasan Kode | Times New Roman | 11 pt | **Non-Bold (`False`)** | **Justify** | **First-line indent ~0.4 in (~1 cm)**, spasi 1.15 |
 | **Output** | Label `Output` | Times New Roman | 11 pt | **Non-Bold (`False`)** | Justify | Spasi Before 8pt, After 2pt |
-| **Output** | Gambar Screenshot GUI / DB / CLI | - | - | - | Center | Lebar 4.8 inci, Spasi After 6pt |
+| **Output** | Gambar Screenshot GUI / DB / CLI | - | - | - | Center | Lebar 4.8–5.2 inci, Spasi After 6pt |
 
 #### 2. Aturan Larangan Teknis Agent (Critical Rule):
 - **DILARANG KERAS** menggunakan `doc.paragraphs[x].text = "..."` secara mentah pada paragraf bawaan template!
   - *Penyebab*: Jika paragraf tersebut memiliki style Heading (misal `Heading 1`), python-docx akan menghapus run sebelumnya dan membuat run baru tanpa tag `<w:b w:val="0"/>`, sehingga teks mewarisi sifat bold dari Heading. Inilah yang menyebabkan Tujuan dan Dasar Teori menjadi **bold semua**.
-- **WAJIB** gunakan metode terstruktur `LaprakDocxBuilder` yang telah terintegrasi dengan proteksi tipografi:
-  ```python
-  from ngelaprak.core import LaprakDocxBuilder, export_docx_to_pdf
-
-  builder = LaprakDocxBuilder(template_path=TEMPLATE_PATH)
-
-  # 1. Update Cover & Identitas
-  builder.set_cover_title("PERTEMUAN 4", "MODUL 4: GUI Part 3 & JDBC")
-  builder.set_student_info(nama="Khilma 'Ainunnajah", nim="109092530004")
-
-  # 2. Update Tujuan (Otomatis Non-Bold, 12pt Times New Roman)
-  builder.set_objectives([
-      "1. Mengenal konsep JDBC dan cara menghubungkan Java dengan database.",
-      "2. Menggunakan JDBC Driver dalam aplikasi Java.",
-      "3. Mengimplementasikan operasi CRUD (Create, Read, Update, Delete) dalam aplikasi berbasis GUI."
-  ])
-
-  # 3. Update Tool (Otomatis Non-Bold, 11pt Times New Roman, Indent Kiri)
-  builder.set_tools("NetBeans, JDK 25, MySQL / Laragon")
-
-  # 4. Update Dasar Teori (Otomatis Non-Bold, 12pt Times New Roman, Justified, First-Line Indent)
-  builder.set_dasar_teori(
-      "Java Database Connectivity (JDBC) adalah spesifikasi API standar dari Java yang digunain..."
-  )
-
-  # 5. Rakit Guided Items (Otomatis Non-Bold untuk judul item, label Kode, dan label Penjelasan)
-  builder.clear_guided_section(keep_until_p_index=35)
-  builder.add_code_item("1.) TestJDBC.java", [shot_test], "Penjelasan kode non-bold...")
-
-  # 6. Output Section (Otomatis Non-Bold untuk header Output)
-  builder.add_output_section([shot_gui, shot_db])
-
-  # 7. Simpan Dokumen (Otomatis menjalankan sanitize_document_typography())
-  builder.save(docx_output)
-
-  # 8. Ekspor PDF
-  export_docx_to_pdf(docx_output, pdf_output)
-  ```
-- **Fitur Otomatis `sanitize_document_typography()`**:
-  Fungsi ini berjalan otomatis saat `builder.save()` dipanggil. Seluruh paragraf tubuh dokumen akan dipindai; jika ada run yang secara tidak sengaja berstatus bold, sistem akan memaksanya menjadi `bold = False`. Hanya bab utama (`I. TUJUAN`, `II. TOOL`, `III. DASAR TEORI`, `IV. GUIDED`) yang diperbolehkan berstatus bold.
+- **WAJIB** gunakan metode terstruktur `LaprakDocxBuilder` yang telah terintegrasi dengan proteksi tipografi otomatis (`sanitize_document_typography()`).
 
 ---
 
-### Langkah 6: Perakitan Dokumen Word (`.docx`) & PDF (`.pdf`)
+### Langkah 6: Panduan Pemilihan View Mode & Ukuran Gambar di Word (`.docx`)
 
-1. **Tata Letak & Spasi Halaman**:
-   - Iris kode panjang menjadi ~20–25 baris per gambar agar tidak memicu pemotongan halaman janggal.
-   - Skalakan lebar gambar proporsional (`width = Inches(5.2)` sampai `Inches(5.5)`).
-   - Pastikan teks penjelasan berada tepat di bawah gambar kode terkait.
-2. **Kompilasi Word (`.docx`)**:
-   - Bangun file menggunakan `LaprakDocxBuilder` dengan menerapkan style, font, dan cover yang identik dengan template awal.
-3. **Ekspor PDF Otomatis**:
-   - Di Windows: Ekspor langsung melalui Microsoft Word COM Automation (`Word.Application`).
-   - Di Linux / macOS: Gunakan LibreOffice headless (`soffice --headless --convert-to pdf`).
+| Aspek | `--view editor` (Snippet Irisan Kode) | `--view full` (Jendela Lengkap Desktop IDE) |
+|---|---|---|
+| **Kegunaan Utama di Laprak** | Pembahasan langkah-langkah tugas Guided & Unguided; penjelasan baris per baris method, query, struct, atau fungsi. | Verifikasi struktur proyek, menampilkan hirarki paket Maven di NetBeans Projects panel, struktur workspace `.cbp` di Code::Blocks, atau tampilan keseluruhan lingkungan IDE. |
+| **Rekomendasi Lebar di Word** | `5.2` sampai `5.5` inci (`Inches(5.2)` – `Inches(5.5)`) | `5.8` sampai `6.0` inci (`Inches(5.8)` – `Inches(6.0)`) |
+| **Rasio Aspek & Dimensi** | Strip vertikal kompak (~400–700 px tinggi tergantung baris). | Lanskap widescreen (~16:10 atau 16:9, min 980x560 px). |
+| **Manajemen Halaman** | Sangat ideal diletakkan bersamaan dengan 2–3 paragraf penjelasan mahasiswa pada satu halaman. | Memakan ~0.4–0.5 halaman A4; letakkan di bagian awal bab atau sub-bab verifikasi proyek agar tidak memotong halaman secara canggung. |
 
 ---
 
-## 2. Struktur Direktori Standar
+## 2. Matriks Parameter Renderer & CLI Reference
+
+### 2.1 Perintah CLI: `python -m ngelaprak render`
+
+| Parameter | Tipe | Nilai yang Diizinkan | Default | Fungsi & Perilaku |
+|---|---|---|---|---|
+| `--ide` | string | `netbeans`, `codeblocks`, `vscode`, `database` | `netbeans` | Menentukan engine renderer IDE target. |
+| `--view` | string | `editor`, `full` | `editor` | `editor`: Irisan kode editor + gutter + fold lines + margin guide.<br>`full`: Jendela GUI desktop IDE lengkap (FlatLaf Swing untuk NetBeans, wxAui untuk Code::Blocks). |
+| `--file` | path | Path berkas sumber yang valid | **Wajib** | Berkas kode sumber yang akan dirender (`.java`, `.cpp`, `.c`, `.h`, `.py`, dll.). |
+| `--out` | path | Filepath PNG (`.png`) | `screenshot.png` | Tujuan penyimpanan gambar output. Direktori parent dibuat otomatis jika belum ada. |
+| `--project` | string | String identifier | `ProjekPraktikum` | Nama projek pada title bar jendela IDE dan root panel Projects / Management di `--view full`. |
+| `--filename` | string | String nama file | `None` (auto) | Menimpa judul tab editor dan nama node di pohon berkas (default mengambil `os.path.basename(--file)`). |
+| `--theme` | string | `dark`, `light` | `dark` | Tema warna editor (terutama untuk VS Code; NetBeans selalu FlatLaf Light resmi, Code::Blocks selalu Scintilla Light). |
+| `--start` | int | Integer $\ge 1$ | `1` | Nomor baris awal irisan kode yang ditampilkan pada editor. |
+| `--end` | int | Integer $\ge \text{start}$ | `None` (EOF) | Nomor baris akhir irisan kode yang ditampilkan pada editor. |
+
+---
+
+### 2.2 Programmatic Python API
+
+#### 1. `render_netbeans_code` (`ngelaprak.renderers.netbeans_renderer`)
+```python
+def render_netbeans_code(
+    filename: str,                         # e.g., "KoneksiDB.java"
+    code_text: str,                        # Source code Java lengkap / potongan
+    start_line: int = 1,                   # Baris awal (1-based)
+    end_line: int | None = None,           # Baris akhir (1-based, None = seluruh berkas)
+    out_path: str = "netbeans_shot.png",   # Path berkas output .png
+    active_line_offset: int | None = None, # Baris yang disorot krem aktif (#F9F4E0)
+    with_margin_guide: bool = True,        # Render margin guide pink kolom 80 (#FFD4D4)
+    with_cursor: bool = True,              # Render blinking cursor line '|'
+    author_tag: str | None = None,         # Inject // @author <name> jika belum ada
+    view: str = "editor",                  # "editor" atau "full"
+    project_name: str = "ProjekPraktikum", # Nama project di title bar & panel Projects
+    extra_files: list[str] | None = None,  # Daftar sibling files di panel package tree
+    sourcepath: str | None = None,         # Path root src/main/java untuk javac AST
+) -> str
+```
+
+#### 2. `render_codeblocks_code` (`ngelaprak.renderers.codeblocks_renderer`)
+```python
+def render_codeblocks_code(
+    code_text: str,                        # Source code C / C++
+    start_line: int = 1,                   # Baris awal (1-based)
+    end_line: int | None = None,           # Baris akhir (1-based, None = seluruh berkas)
+    out_path: str = "codeblocks_shot.png", # Path berkas output .png
+    with_cursor: bool = True,              # Render blinking cursor
+    author_tag: str | None = None,         # Inject // @author <name> jika belum ada
+    view: str = "editor",                  # "editor" atau "full"
+    filename: str = "main.cpp",            # Nama tab aktif & node tree
+    project_name: str = "ProjekPraktikum", # Nama project di title bar & Workspace tree
+    extra_files: list[str] | None = None,  # Sibling files (Sources & Headers)
+) -> str
+```
+
+#### 3. `render_vscode_code` (`ngelaprak.renderers.vscode_renderer`)
+```python
+def render_vscode_code(
+    code_text: str,                        # Source code (Python, JS, TS, HTML, dll.)
+    filename: str = "script.py",           # Nama file pada tab
+    theme: str = "dark",                   # "dark" (Dark+ Modern) atau "light"
+    start_line: int = 1,                   # Baris awal
+    end_line: int | None = None,           # Baris akhir
+    out_path: str = "vscode_shot.png",     # Output file path
+    with_cursor: bool = True,              # Blinking cursor
+) -> str
+```
+
+#### 4. `render_terminal_output` & `simulate_interactive_cli`
+```python
+from ngelaprak.renderers import render_terminal_output
+from ngelaprak.core import build_interactive_terminal_lines, render_interactive_session_to_image
+
+# 1. Output terminal statik
+render_terminal_output(
+    title_text="Terminal - Administrator",
+    lines=["$ g++ -o main main.cpp", "$ ./main", "Hasil penjumlahan: 42"],
+    out_path="Laprak/screenshots/terminal.png"
+)
+
+# 2. Simulasi CLI interaktif mahasiswa (Stack, Queue, CRUD, dll.)
+render_interactive_session_to_image(
+    prompt_dir=r"D:\COOLYEAH\Semester 3\Praktikum",
+    scenario_type="sorting",                 # "stack", "queue", "crud", "tree", "sorting"
+    out_path="Laprak/screenshots/cli_interactive.png",
+    window_title="Command Prompt - C:\\Users\\Mahasiswa\\Modul3"
+)
+```
+
+---
+
+### 2.3 Contoh Integrasi Skrip Python Lengkap dengan `LaprakDocxBuilder`
+
+```python
+from docx.shared import Inches
+from ngelaprak.core import LaprakDocxBuilder, export_docx_to_pdf
+from ngelaprak.renderers import render_netbeans_code, render_terminal_output
+
+# 1. Render Irisan Kode Editor untuk Guided (Penjelasan method getConnection)
+shot_snippet = render_netbeans_code(
+    filename="KoneksiDB.java",
+    code_text=open("Code/src/main/java/modul4/KoneksiDB.java").read(),
+    start_line=1,
+    end_line=28,
+    view="editor",
+    out_path="Laprak/screenshots/1_KoneksiDB_NetBeans.png"
+)
+
+# 2. Render Jendela Lengkap IDE untuk Tampilan Workspace & Project Tree
+shot_full = render_netbeans_code(
+    filename="KasirForm.java",
+    code_text=open("Code/src/main/java/modul4/KasirForm.java").read(),
+    view="full",
+    project_name="KasirApp",
+    extra_files=["KoneksiDB.java", "KasirForm.java", "Barang.java"],
+    sourcepath="Code/src/main/java",
+    out_path="Laprak/screenshots/2_KasirForm_FullIDE.png"
+)
+
+# 3. Rakit Dokumen Word dengan Ukuran Gambar Terstandarisasi
+builder = LaprakDocxBuilder(template_path="Laprak/template_modul2.docx")
+builder.set_cover_title("PERTEMUAN 4", "MODUL 4: GUI & DATABASE CONNECTIVITY")
+builder.set_student_info(nama="Satria Bakti Wijaya", nim="109092500017")
+
+# Editor snippet dimasukkan dengan lebar 5.2 inci
+builder.add_code_item(
+    item_title="1.) Koneksi Database (KoneksiDB.java)",
+    image_paths=[shot_snippet],
+    explanation_text="Method getConnection() berfungsi menginisialisasi driver MySQL dan membuat koneksi aktif ke database praktikum.",
+    img_width=Inches(5.2)
+)
+
+# Full IDE window dimasukkan dengan lebar 5.8 inci
+builder.add_code_item(
+    item_title="2.) Tampilan Lingkungan Pengembangan Apache NetBeans (KasirApp)",
+    image_paths=[shot_full],
+    explanation_text="Struktur proyek Maven KasirApp beserta package modul4 pada panel Projects Apache NetBeans 31.",
+    img_width=Inches(5.8)
+)
+
+builder.save("Laprak/Laporan_Modul4_Satria.docx")
+export_docx_to_pdf("Laprak/Laporan_Modul4_Satria.docx", "Laprak/Laporan_Modul4_Satria.pdf")
+```
+
+---
+
+## 3. Direktori Standar Workspace
 
 ```
 <Workspace Folder>/
@@ -323,41 +424,50 @@ Untuk memastikan dokumen Word & PDF **100% identik dengan format acuan kampus/as
 
 ---
 
-## 3. Perintah CLI Pendukung
+## 4. Perintah CLI Lengkap
 
 ```bash
-# Auto-scaffold dan rapikan file tercecer ke Modul/, Laprak/, dan Code/ (auto setup NetBeans / CodeBlocks)
+# 1. Auto-scaffold dan rapikan file tercecer ke Modul/, Laprak/, dan Code/
 python -m ngelaprak organize
 
-# Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE tanpa memindahkan file
+# 2. Deteksi otomatis konteks modul, mahasiswa, bahasa & IDE tanpa memindahkan file
 python -m ngelaprak analyze
 
-# Inisialisasi struktur folder laporan (bisa langsung spesifik IDE: --lang java / --lang cpp)
+# 3. Inisialisasi struktur folder laporan dan template kodingan resmi
 python -m ngelaprak init --lang java
 python -m ngelaprak init --lang cpp
 
-# Render screenshot IDE otentik (mode potongan editor / jendela IDE penuh)
-python -m ngelaprak render --ide netbeans --view editor --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main.png
-python -m ngelaprak render --ide netbeans --view full --project KasirApp --file Code/src/main/java/modul4/Main.java --out Laprak/screenshots/main_full.png
-python -m ngelaprak render --ide codeblocks --view editor --file Code/main.cpp --out Laprak/screenshots/code1.png
-python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file Code/main.cpp --out Laprak/screenshots/code1_full.png
+# 4. Render screenshot IDE otentik Apache NetBeans
+# Mode editor snippet (default):
+python -m ngelaprak render --ide netbeans --view editor --file Code/src/main/java/modul4/KoneksiDB.java --start 1 --end 30 --out Laprak/screenshots/1_KoneksiDB_NetBeans.png
+# Mode full desktop window:
+python -m ngelaprak render --ide netbeans --view full --project KasirApp --file Code/src/main/java/modul4/KasirForm.java --out Laprak/screenshots/2_KasirForm_NetBeans.png
+
+# 5. Render screenshot IDE otentik Code::Blocks
+# Mode editor snippet (default):
+python -m ngelaprak render --ide codeblocks --view editor --file Code/main.cpp --out Laprak/screenshots/2_main_cpp_CodeBlocks.png
+# Mode full workspace window:
+python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file Code/main.cpp --out Laprak/screenshots/codeblocks_full.png
 
 # Opsi Lanjutan Render IDE (1-to-1 Pixel-Perfect Fidelity):
-#   --scale <float>        : Faktor skala raster (default: 1.0 integer crisp)
-#   --caret <LINE:COL>     : Posisi kursor/caret (default: 1:1, misal: --caret 5:10)
+#   --scale <float>            : Faktor skala raster (default: 1.0 integer crisp)
+#   --caret <LINE:COL>         : Posisi kursor/caret (default: 1:1, misal: --caret 5:10)
 #   --caret-line / --caret-col : Baris & kolom posisi kursor individual
-#   --hide-bottom-dock     : Sembunyikan dock bawah (Output NetBeans / Logs & others Code::Blocks)
-#   --hide-navigator       : Sembunyikan panel Navigator di NetBeans
-#   --show-changebar       : Tampilkan margin changebar hijau baris termodifikasi di Code::Blocks
-#   --no-margin-guide      : Sembunyikan garis panduan margin kolom 80
-#   --no-cursor            : Sembunyikan caret kursor
-#   --extra-files <a,b>    : Daftar tab/berkas ekstra yang dibuka di editor & explorer
+#   --hide-bottom-dock         : Sembunyikan dock bawah (Output NetBeans / Logs & others Code::Blocks)
+#   --hide-navigator           : Sembunyikan panel Navigator di NetBeans
+#   --show-changebar           : Tampilkan margin changebar hijau baris termodifikasi di Code::Blocks
+#   --no-margin-guide          : Sembunyikan garis panduan margin kolom 80
+#   --no-cursor                : Sembunyikan caret kursor
+#   --extra-files <a,b>        : Daftar tab/berkas ekstra yang dibuka di editor & explorer
 
-# Simulasi & render output CLI interaktif mahasiswa (multi-step input)
+# 6. Render screenshot IDE VS Code (Dark Modern)
+python -m ngelaprak render --ide vscode --theme dark --file Code/app.py --out Laprak/screenshots/app_vscode.png
+
+# 7. Simulasi & render output CLI interaktif mahasiswa (multi-step input)
 python -m ngelaprak simulate-cli --type stack --out Laprak/screenshots/cli_interactive.png
 python -m ngelaprak simulate-cli --type queue --out Laprak/screenshots/queue_interactive.png
 
-# Ekspor berkas Word ke PDF
+# 8. Ekspor berkas Word ke PDF
 python -m ngelaprak export-pdf --docx Laprak/Laporan.docx
 
 # [ANTI-TRAP] Sanitasi dokumen / gambar / starter code sebelum dibaca
@@ -368,3 +478,18 @@ python -m ngelaprak sanitize --file Modul/soal_foto.png --out-image Modul/soal_f
 python -m ngelaprak audit-code --code-dir Code/ --report Modul/trap_report.json
 python -m ngelaprak audit-code --code-dir Code/ --source Modul/Assessment.pdf
 ```
+
+---
+
+## 5. Prasyarat Sistem & Troubleshooting
+
+1. **Java JDK (JDK 17 / 21 / 25)**:
+   - Diperlukan untuk kompilasi AST pada renderer native Apache NetBeans (`NetBeansNativeRenderer.java`).
+   - Pastikan `javac` dan `java` terdaftar pada `PATH` sistem (`javac -version`).
+   - Renderer bekerja mandiri menggunakan Java2D dan FlatLaf bawaan bahkan tanpa instalasi utuh Apache NetBeans. Jika NetBeans terpasang di `C:\Program Files\Apache NetBeans`, aset ikon JAR resmi akan dimuat otomatis.
+2. **wxPython**:
+   - Diperlukan untuk renderer native Code::Blocks (`wx.stc.StyledTextCtrl` wxScintilla).
+   - Pasang via: `pip install wxPython`.
+   - Di lingkungan Linux/macOS headless CI, jalankan di bawah X virtual framebuffer: `xvfb-run python -m ngelaprak ...`.
+3. **Microsoft Word / LibreOffice**:
+   - Konversi PDF otomatis memanfaatkan Microsoft Word COM Automation (`Word.Application`) di Windows atau LibreOffice (`soffice`) di Linux/macOS.

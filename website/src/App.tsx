@@ -7,7 +7,9 @@ import { AgentEcosystem } from './components/AgentEcosystem'
 import { TutorSection } from './components/TutorSection'
 import { IdeGallery } from './components/IdeGallery'
 import { BeforeAfter } from './components/BeforeAfter'
+import { WhatsNew } from './components/WhatsNew'
 import { FeaturesBento } from './components/FeaturesBento'
+import { Contributors } from './components/Contributors'
 import { InstallGuide } from './components/InstallGuide'
 import { Footer } from './components/Footer'
 
@@ -61,7 +63,9 @@ export const App: React.FC = () => {
         <TutorSection />
         <IdeGallery />
         <BeforeAfter />
+        <WhatsNew />
         <FeaturesBento />
+        <Contributors />
         <InstallGuide />
       </main>
 
