@@ -30,6 +30,25 @@ def format_context_summary(ctx):
     
     code_status = "Sudah ada kodingan" if ctx.get('has_code') else "Belum ada kodingan (siap dibuat di folder Code/)"
     out.append(f"  * Status Kode   : {code_status}")
+
+    tr = ctx.get("trap_report") or {}
+    if tr.get("total_stripped_traps") or tr.get("total_semantic_warnings") or tr.get("image_heavy_files"):
+        out.append("------------------------------------------------------------")
+        out.append(f"  [ANTI-TRAP] Risk Level: {str(tr.get('risk_level', 'none')).upper()}")
+        if tr.get("total_stripped_traps"):
+            out.append(f"  * Hidden Trap Dibuang  : {tr.get('total_stripped_traps')} temuan")
+        if tr.get("total_semantic_warnings"):
+            out.append(f"  * Peringatan Semantik  : {tr.get('total_semantic_warnings')} (WAJIB konfirmasi user)")
+        if tr.get("forbidden_identifiers"):
+            out.append(f"  * Forbidden Identifiers: {', '.join(tr['forbidden_identifiers'])}")
+        if tr.get("image_heavy_files"):
+            out.append(f"  * Dokumen Scan/Gambar  : {', '.join(tr['image_heavy_files'])} (terapkan protokol visual anti-trap)")
+        for finding in tr.get("files_with_findings", [])[:5]:
+            out.append(
+                f"    - {finding['file']} [{finding['risk_level']}] "
+                f"(stripped={finding['stripped_count']}, warnings={finding['semantic_warning_count']})"
+            )
+
     out.append("============================================================")
     return "\n".join(out)
 
@@ -90,6 +109,29 @@ def main():
     parser_pdf = subparsers.add_parser("export-pdf", help="Ekspor berkas DOCX ke PDF")
     parser_pdf.add_argument("--docx", required=True, help="Path berkas .docx")
     parser_pdf.add_argument("--pdf", default=None, help="Path berkas .pdf output")
+
+    # Command: sanitize
+    parser_san = subparsers.add_parser(
+        "sanitize",
+        help="Sanitasi dokumen/gambar/kode terhadap hidden AI trap & prompt injection",
+    )
+    parser_san.add_argument("--file", required=True, help="Path berkas input (PDF/DOCX/PPTX/XLSX/HTML/MD/IPYNB/SVG/PNG/JPG/Code)")
+    parser_san.add_argument("--out-clean", default=None, help="Simpan teks bersih hasil sanitasi ke berkas")
+    parser_san.add_argument("--out-report", default=None, help="Simpan laporan lengkap sanitasi dalam format JSON")
+    parser_san.add_argument("--out-image", default=None, help="Simpan gambar bersih (tanpa metadata & alpha-flattened)")
+    parser_san.add_argument("--engine", choices=["auto", "pymupdf", "pdfplumber", "pypdf"], default="auto", help="Engine ekstraksi PDF (default: auto)")
+    parser_san.add_argument("--json", action="store_true", dest="as_json", help="Cetak output laporan dalam format JSON")
+
+    # Command: audit-code
+    parser_audit = subparsers.add_parser(
+        "audit-code",
+        help="Audit direktori kode sumber terhadap kebocoran forbidden identifiers / trap watermark",
+    )
+    parser_audit.add_argument("--code-dir", required=True, help="Direktori (atau berkas) kode sumber untuk diaudit")
+    parser_audit.add_argument("--report", default=None, help="Path berkas JSON laporan hasil 'ngelaprak sanitize --out-report'")
+    parser_audit.add_argument("--source", action="append", default=None, help="Path dokumen sumber (PDF/DOCX/dll.) untuk mengekstrak forbidden identifiers otomatis")
+    parser_audit.add_argument("--identifiers", default=None, help="Daftar identifier terlarang tambahan dipisah koma")
+    parser_audit.add_argument("--json", action="store_true", dest="as_json", help="Cetak hasil audit dalam format JSON")
 
     args = parser.parse_args()
 
@@ -271,6 +313,93 @@ def main():
         from ngelaprak.core import export_docx_to_pdf
         pdf_out = export_docx_to_pdf(args.docx, args.pdf)
         print(f"[NgeLaprak] Berhasil diekspor ke PDF: {pdf_out}")
+
+    elif args.command == "sanitize":
+        import json
+        from ngelaprak.core import sanitize_document
+
+        target_file = os.path.abspath(args.file)
+        if not os.path.exists(target_file):
+            print(f"[ANTI-TRAP] Error: Berkas tidak ditemukan: {target_file}", file=sys.stderr)
+            sys.exit(2)
+
+        rep = sanitize_document(
+            target_file,
+            engine=args.engine,
+            out_image_path=args.out_image,
+        )
+
+        if args.out_clean:
+            out_clean = os.path.abspath(args.out_clean)
+            os.makedirs(os.path.dirname(out_clean), exist_ok=True)
+            with open(out_clean, "w", encoding="utf-8") as f:
+                f.write(rep.clean_text)
+
+        if args.out_report:
+            rep.save_json(args.out_report)
+
+        if args.as_json:
+            print(rep.to_json())
+        else:
+            print("============================================================")
+            print("   [ANTI-TRAP] Laporan Sanitasi Dokumen / Gambar")
+            print("============================================================")
+            print(f"  * Berkas     : {target_file}")
+            print(f"  * Tipe/Engine: {rep.file_type} ({rep.engine_used})")
+            print(f"  * Risk Level : {rep.risk_level.upper()}")
+            print(f"  * Trap Buang : {len(rep.stripped_traps)}")
+            print(f"  * Peringatan : {len(rep.semantic_warnings)}")
+            if rep.forbidden_identifiers:
+                print(f"  * Forbidden  : {', '.join(rep.forbidden_identifiers)}")
+            if rep.sanitized_image_path:
+                print(f"  * Clean Image: {rep.sanitized_image_path}")
+            if rep.stats.get("is_image_heavy_document"):
+                print(f"  * [!] Halaman berbasis gambar/scan terdeteksi: {rep.stats.get('image_heavy_pages')}")
+            if rep.stripped_traps:
+                print("\n[Stripped Hidden Traps]:")
+                for t in rep.stripped_traps:
+                    print(f"  - [{t['reason']}] ({t['location']}): {t['text'][:160]}")
+            if rep.semantic_warnings:
+                print("\n[Semantic Warnings - WAJIB KONFIRMASI USER]:")
+                for w in rep.semantic_warnings:
+                    print(f"  - [{w['category']}/{w['pattern']}] ({w['location']}): {w['text'][:160]}")
+            if rep.clean_text and not args.out_clean:
+                print("\n[Clean Text]:")
+                print(rep.clean_text)
+
+    elif args.command == "audit-code":
+        import json
+        from ngelaprak.core import audit_code_for_traps
+
+        extra_ids = (
+            [s.strip() for s in args.identifiers.split(",") if s.strip()]
+            if args.identifiers
+            else None
+        )
+        res = audit_code_for_traps(
+            code_dir=args.code_dir,
+            forbidden_identifiers=extra_ids,
+            report=args.report,
+            source_files=args.source,
+        )
+
+        if args.as_json:
+            print(json.dumps(res, ensure_ascii=False, indent=2))
+        else:
+            status_txt = "PASSED (BERSIH)" if res["passed"] else f"FAILED ({res['violation_count']} KEBOCORAN TRAP)"
+            print("============================================================")
+            print(f"   [ANTI-TRAP] Audit Kode Akhir: {status_txt}")
+            print("============================================================")
+            print(f"  * Direktori    : {res['code_dir']}")
+            print(f"  * File Dipindai: {len(res['scanned_files'])}")
+            print(f"  * Identifier   : {', '.join(res['checked_identifiers']) if res['checked_identifiers'] else '(none)'}")
+            if res["violations"]:
+                print("\n[Pelanggaran Terdeteksi]:")
+                for v in res["violations"]:
+                    print(f"  - {v['rel_path']}:{v['line']} [{v['reason']}:{v['identifier']}] -> {v['snippet']}")
+
+        if not res["passed"]:
+            sys.exit(1)
 
     else:
         parser.print_help()
