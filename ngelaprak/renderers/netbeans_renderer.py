@@ -43,8 +43,14 @@ def _ensure_compiled():
         os.path.getmtime(_JAVA_SRC) > os.path.getmtime(_CLASS_FILE)
     )
     if need_compile:
+        nb_home = _find_netbeans_home()
+        cp = _build_classpath(nb_home)
+        cmd = ["javac", "-encoding", "UTF-8"]
+        if cp:
+            cmd.extend(["-cp", cp])
+        cmd.extend(["-d", _BIN_DIR, _JAVA_SRC])
         res = subprocess.run(
-            ["javac", "-encoding", "UTF-8", "-d", _BIN_DIR, _JAVA_SRC],
+            cmd,
             capture_output=True,
             text=True,
         )
@@ -66,12 +72,24 @@ def render_netbeans_code(
     project_name="ProjekPraktikum",
     extra_files=None,
     sourcepath=None,
-):
+    caret_line=1,
+    caret_col=1,
+    show_bottom_dock=True,
+    show_navigator=True,
+    scale=1.0,
+) -> str:
     """
     Renders a 100% pixel-perfect Apache NetBeans 31 (FlatLaf Light) screenshot using:
-    - Real JDK javac Compiler Tree API (semantic field/static/override/warning resolution)
+    - Real JDK javac Compiler Tree API (semantic field/static/override/warning resolution & Navigator member extraction)
     - Real Java2D LCD_HRGB subpixel text rendering & official NetBeans JAR SVG/PNG assets
-    - Real Swing + FlatLightLaf chrome when view='full'
+    - Unified 30px FlatTitlePane (NetBeans 3D cube + 13 menus + centered title + Search(Ctrl+I) + Win11 caption buttons)
+    - Main Toolbar parity (<default config> combo + action icons + Heap meter 580,8/864,0MB)
+    - Left Explorer vertical split (4 tabs + nested package tree + Navigator pane with javac AST members)
+    - Multi-tab editor with accent blue overline (underlineAtTop) + micro-toolbar Source|History
+    - Caret positioning at line 1 col 1 default, cream row highlight, subtle 80-col margin guide, error stripe
+    - Bottom Output dock (~140px) with authentic compilation/run logs
+    - Segmented status bar (1:1 | INS | Unix (LF) | UTF-8)
+    - 1:1 integer raster scale default for crisp unblurred borders
     """
     _ensure_compiled()
 
@@ -106,6 +124,16 @@ def render_netbeans_code(
         "true" if with_cursor else "false",
         "--margin-guide",
         "true" if with_margin_guide else "false",
+        "--caret-line",
+        str(caret_line),
+        "--caret-col",
+        str(caret_col),
+        "--show-bottom-dock",
+        "true" if show_bottom_dock else "false",
+        "--show-navigator",
+        "true" if show_navigator else "false",
+        "--scale",
+        str(scale),
         "--jitter-w",
         str(random.randint(18, 55)),
         "--jitter-h",

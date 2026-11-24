@@ -4,7 +4,43 @@ import shutil
 import docx
 import pypdf
 
-def extract_text_from_pdf(pdf_path, max_pages=None):
+from .anti_trap import (
+    SanitizationReport,
+    audit_workspace_agent_rules,
+    sanitize_document,
+    sanitize_docx,
+    sanitize_pdf,
+)
+
+
+_RISK_ORDER = {"none": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+
+
+def _summarize_report(rep: SanitizationReport) -> dict:
+    return {
+        "source_path": rep.source_path,
+        "file_type": rep.file_type,
+        "engine_used": rep.engine_used,
+        "risk_level": rep.risk_level,
+        "stripped_count": len(rep.stripped_traps),
+        "semantic_warning_count": len(rep.semantic_warnings),
+        "forbidden_identifiers": list(rep.forbidden_identifiers),
+        "stripped_traps": [dict(t) for t in rep.stripped_traps],
+        "semantic_warnings": [dict(w) for w in rep.semantic_warnings],
+        "sanitized_image_path": rep.sanitized_image_path,
+        "stats": dict(rep.stats),
+    }
+
+
+def extract_text_from_pdf(pdf_path, max_pages=None, sanitize=True, engine="auto"):
+    if sanitize:
+        try:
+            rep = sanitize_pdf(pdf_path, engine=engine, max_pages=max_pages)
+            if rep.engine_used not in ("none", "failed"):
+                return rep.clean_text
+        except Exception:
+            pass
+
     text_pages = []
     try:
         reader = pypdf.PdfReader(pdf_path)
@@ -15,21 +51,40 @@ def extract_text_from_pdf(pdf_path, max_pages=None):
         pass
     return "\n".join(text_pages)
 
-def extract_text_from_docx(docx_path):
+
+def extract_text_from_docx(docx_path, sanitize=True):
+    if sanitize:
+        try:
+            rep = sanitize_docx(docx_path)
+            if rep.engine_used not in ("none", "failed"):
+                return rep.clean_text
+        except Exception:
+            pass
+
     try:
         doc = docx.Document(docx_path)
         return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
     except Exception:
         return ""
 
-def extract_text_from_file(file_path, max_chars=10000):
+
+def extract_text_from_file(file_path, max_chars=10000, sanitize=True):
     if not os.path.exists(file_path):
         return ""
     ext = os.path.splitext(file_path)[1].lower()
+    if sanitize:
+        try:
+            max_pages = 5 if ext == ".pdf" else None
+            rep = sanitize_document(file_path, max_pages=max_pages)
+            if rep.engine_used not in ("none", "failed"):
+                return rep.clean_text[:max_chars]
+        except Exception:
+            pass
+
     if ext == ".pdf":
-        return extract_text_from_pdf(file_path, max_pages=5)[:max_chars]
+        return extract_text_from_pdf(file_path, max_pages=5, sanitize=False)[:max_chars]
     elif ext == ".docx":
-        return extract_text_from_docx(file_path)[:max_chars]
+        return extract_text_from_docx(file_path, sanitize=False)[:max_chars]
     else:
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -96,19 +151,29 @@ def classify_file(filename, file_path=None):
 
     return 'misc'
 
-def analyze_modul(modul_path):
+def analyze_modul(modul_path, sanitize=True):
     """
-    Extracts structured info from a lab module file (PDF or DOCX).
-    Returns dict: title, tujuan, tools, dasar_teori, tasks
+    Extracts structured info from a lab module file (PDF, DOCX, PPTX, XLSX, HTML, MD, IPYNB, SVG).
+    Returns dict: title, tujuan, tools, dasar_teori, raw_text_length, trap_report
     """
-    raw_text = extract_text_from_file(modul_path, max_chars=30000)
+    trap_summary = None
+    if sanitize and os.path.exists(modul_path):
+        try:
+            rep = sanitize_document(modul_path)
+            raw_text = rep.clean_text[:30000]
+            trap_summary = _summarize_report(rep)
+        except Exception:
+            raw_text = extract_text_from_file(modul_path, max_chars=30000, sanitize=False)
+    else:
+        raw_text = extract_text_from_file(modul_path, max_chars=30000, sanitize=sanitize)
 
     info = {
         "title": "",
         "tujuan": [],
         "tools": "",
         "dasar_teori": "",
-        "raw_text_length": len(raw_text)
+        "raw_text_length": len(raw_text),
+        "trap_report": trap_summary,
     }
 
     # Extract title
@@ -619,6 +684,81 @@ def infer_workspace_context(workspace_dir):
         clean_name = student_name.replace(' ', '')
         suggested_filename = f"{clean_course}_MOD-{target_module_number}_{student_nim}_{clean_name}.docx"
 
+    # 6. Anti-Trap Workspace Audit (scan Modul, TP, Starter Code, and misc documents)
+    audit_targets = []
+    for cat_key in ("modul", "tp", "code"):
+        audit_targets.extend(categories.get(cat_key, []))
+    for misc_fp in categories.get("misc", []):
+        if os.path.splitext(misc_fp)[1].lower() in (
+            ".pdf", ".docx", ".pptx", ".xlsx", ".rtf", ".odt", ".odp", ".ods", ".zip",
+            ".html", ".htm", ".md", ".ipynb", ".svg",
+        ):
+            audit_targets.append(misc_fp)
+
+    max_risk = "none"
+    total_stripped = 0
+    total_warnings = 0
+    all_forbidden = []
+    seen_forbidden = set()
+    files_with_findings = []
+    image_heavy_files = []
+
+    for fp in audit_targets:
+        try:
+            rep = sanitize_document(fp)
+        except Exception:
+            continue
+        if _RISK_ORDER.get(rep.risk_level, 0) > _RISK_ORDER.get(max_risk, 0):
+            max_risk = rep.risk_level
+        total_stripped += len(rep.stripped_traps)
+        total_warnings += len(rep.semantic_warnings)
+        for ident in rep.forbidden_identifiers:
+            if ident.lower() not in seen_forbidden:
+                seen_forbidden.add(ident.lower())
+                all_forbidden.append(ident)
+        if rep.stats.get("is_image_heavy_document"):
+            image_heavy_files.append(os.path.relpath(fp, workspace_dir))
+        if rep.stripped_traps or rep.semantic_warnings:
+            files_with_findings.append({
+                "file": os.path.relpath(fp, workspace_dir),
+                "risk_level": rep.risk_level,
+                "engine_used": rep.engine_used,
+                "stripped_count": len(rep.stripped_traps),
+                "semantic_warning_count": len(rep.semantic_warnings),
+                "forbidden_identifiers": list(rep.forbidden_identifiers),
+            })
+
+    agent_rule_audit = audit_workspace_agent_rules(workspace_dir)
+    agent_rule_findings = agent_rule_audit.get("findings", [])
+    if agent_rule_audit.get("has_poisoning"):
+        max_risk = "critical"
+        for ident in agent_rule_audit.get("forbidden_identifiers", []):
+            if ident.lower() not in seen_forbidden:
+                seen_forbidden.add(ident.lower())
+                all_forbidden.append(ident)
+        for af in agent_rule_findings:
+            files_with_findings.append({
+                "file": af["file"],
+                "risk_level": "critical",
+                "engine_used": "agent_rule_audit",
+                "stripped_count": 1,
+                "semantic_warning_count": len(af.get("semantic_warnings", [])),
+                "forbidden_identifiers": list(af.get("forbidden_identifiers", [])),
+                "reason": af.get("reason", "agent_rule_poisoning"),
+            })
+
+    trap_report = {
+        "risk_level": max_risk,
+        "files_scanned": len(audit_targets),
+        "files_with_findings": files_with_findings,
+        "agent_rule_findings": agent_rule_findings,
+        "total_stripped_traps": total_stripped + len(agent_rule_findings),
+        "total_semantic_warnings": total_warnings,
+        "forbidden_identifiers": all_forbidden,
+        "image_heavy_files": image_heavy_files,
+        "needs_user_confirmation": total_warnings > 0 or len(agent_rule_findings) > 0,
+    }
+
     return {
         "workspace_dir": workspace_dir,
         "course_name": course_name or "Mata Kuliah Praktikum",
@@ -638,7 +778,8 @@ def infer_workspace_context(workspace_dir):
         "code_files_count": len(categories["code"]),
         "needs_scaffold": len(loose_files) > 0,
         "loose_files": loose_files,
-        "categories": categories
+        "categories": categories,
+        "trap_report": trap_report,
     }
 
 def organize_workspace(workspace_dir, dry_run=False):

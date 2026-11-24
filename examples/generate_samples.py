@@ -1,5 +1,6 @@
 import os
 import sys
+import shutil
 from PIL import Image, ImageDraw, ImageFont
 
 # Add repo to sys.path
@@ -15,7 +16,156 @@ from ngelaprak.renderers import (
 from ngelaprak.core import LaprakDocxBuilder, export_docx_to_pdf
 
 EXAMPLES_DIR = os.path.join(REPO_DIR, "examples")
+DOCS_IMAGES_DIR = os.path.join(REPO_DIR, "docs", "images")
 TEMPLATE_PATH = os.path.join(REPO_DIR, "ngelaprak", "templates", "template_kampus.docx")
+
+
+# =============================================================================
+# 1-to-1 Parity Screenshot Samples (NetBeans 31 & Code::Blocks 25.03)
+# =============================================================================
+
+NETBEANS_SAMPLE_CODE = """package model;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+public class TransaksiDAO {
+    private Connection conn;
+
+    public TransaksiDAO() {
+        this.conn = Database.getConnection();
+    }
+
+    public List<Barang> getAllBarang() {
+        List<Barang> list = new ArrayList<>();
+        String sql = "SELECT * FROM barang";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                Barang b = new Barang();
+                b.setId(rs.getInt("id_barang"));
+                b.setNama(rs.getString("nama_barang"));
+                b.setHarga(rs.getDouble("harga"));
+                b.setStok(rs.getInt("stok"));
+                list.add(b);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public List<Object[]> getAllTransaksi() {
+        List<Object[]> list = new ArrayList<>();
+        String sql = "SELECT t.id_transaksi, t.tanggal, t.total, t.metode_pembayaran FROM transaksi t";
+        try (Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                list.add(new Object[]{
+                    rs.getInt("id_transaksi"),
+                    rs.getString("tanggal"),
+                    rs.getDouble("total"),
+                    rs.getString("metode_pembayaran")
+                });
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public void simpanTransaksi(Transaksi t) {
+        String sql = "INSERT INTO transaksi (tanggal, total, metode_pembayaran) VALUES (?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, t.getTanggal());
+            stmt.setDouble(2, t.getTotal());
+            stmt.setString(3, t.getMetodePembayaran());
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+"""
+
+NETBEANS_EXTRA_FILES = [
+    "Database.java",
+    "MetodePembayaran.java",
+    "PembayaranTunai.java",
+    "TransaksiDAO.java",
+    "KasirView.java",
+    "PembayaranTransfer.java"
+]
+
+CODEBLOCKS_SAMPLE_CODE = """#include <iostream>
+
+using namespace std;
+
+int main()
+{
+    cout << "Hello world!" << endl;
+    return 0;
+}
+"""
+
+CODEBLOCKS_EXTRA_FILES = [
+    "main.cpp"
+]
+
+
+def generate_1to1_parity_samples():
+    print("=== Generating 1-to-1 Parity Samples (NetBeans 31 & Code::Blocks 25.03) ===")
+    os.makedirs(DOCS_IMAGES_DIR, exist_ok=True)
+
+    # 1. NetBeans 31: Full Window & Editor View
+    nb_full_ex = os.path.join(EXAMPLES_DIR, "netbeans_full.png")
+    nb_editor_ex = os.path.join(EXAMPLES_DIR, "netbeans_editor.png")
+    nb_full_docs = os.path.join(DOCS_IMAGES_DIR, "after_netbeans_full.png")
+    nb_editor_docs = os.path.join(DOCS_IMAGES_DIR, "after_netbeans_editor.png")
+
+    print("[1/4] Rendering NetBeans 31 Full Window (1:1 Native)...")
+    render_netbeans_code(
+        filename="TransaksiDAO.java",
+        code_text=NETBEANS_SAMPLE_CODE,
+        start_line=1,
+        end_line=24,
+        out_path=nb_full_ex,
+        view="full",
+        project_name="warung-bu-wiwi",
+        extra_files=NETBEANS_EXTRA_FILES,
+        caret_line=1,
+        caret_col=1,
+        show_bottom_dock=True,
+        show_navigator=True,
+        scale=1.0
+    )
+    shutil.copyfile(nb_full_ex, nb_full_docs)
+    print(f"  -> Saved: {nb_full_ex}")
+    print(f"  -> Synced to: {nb_full_docs}")
+
+    print("[2/4] Rendering NetBeans 31 Editor Snippet View...")
+    render_netbeans_code(
+        filename="TransaksiDAO.java",
+        code_text=NETBEANS_SAMPLE_CODE,
+        start_line=1,
+        end_line=24,
+        out_path=nb_editor_ex,
+        view="editor",
+        caret_line=1,
+        caret_col=1,
+        scale=1.0
+    )
+    shutil.copyfile(nb_editor_ex, nb_editor_docs)
+    print(f"  -> Saved: {nb_editor_ex}")
+    print(f"  -> Synced to: {nb_editor_docs}")
+
+    print("[OK] NetBeans 1-to-1 parity samples generated and synced to docs/images/!\n")
+
 
 def create_mock_swing_gui(out_path):
     w, h = 640, 420
@@ -282,7 +432,7 @@ int main() {
     shot_main_cpp = os.path.join(shots_dir, "2_main_cpp_CodeBlocks.png")
     render_codeblocks_code(code_main_cpp, start_line=1, out_path=shot_main_cpp)
 
-    # 2. Terminal Output
+    # 2. Terminal Output (1-to-1 Windows 11 PowerShell)
     term_lines = [
         "PS D:\\COOLYEAH\\Semester 3\\StrukturData> g++ main.cpp -o main.exe",
         "PS D:\\COOLYEAH\\Semester 3\\StrukturData> .\\main.exe",
@@ -290,11 +440,10 @@ int main() {
         "Berhasil push nilai: 25",
         "Berhasil push nilai: 50",
         "",
-        "Process returned 0 (0x0)   execution time : 0.042 s",
-        "Press any key to continue."
+        "PS D:\\COOLYEAH\\Semester 3\\StrukturData> "
     ]
     shot_term = os.path.join(shots_dir, "3_Console_Output.png")
-    render_terminal_output("Windows PowerShell - g++ compiler", term_lines, out_path=shot_term)
+    render_terminal_output("Windows PowerShell", term_lines, out_path=shot_term)
 
     # 3. Assemble Word Document
     docx_out = os.path.join(out_dir, "LAPRAK_SAMPLE_STRUKDAT_MODUL3.docx")
@@ -327,6 +476,7 @@ int main() {
 
 
 if __name__ == "__main__":
+    generate_1to1_parity_samples()
     generate_adpl_sample()
     generate_strukdat_sample()
-    print("\n[SUCCESS] Semua sample laprak (.docx & .pdf) berhasil dibuat!")
+    print("\n[SUCCESS] Semua sample laprak dan screenshot 1-to-1 fidelity berhasil dibuat!")

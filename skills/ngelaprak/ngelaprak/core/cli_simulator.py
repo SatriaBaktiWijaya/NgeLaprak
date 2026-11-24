@@ -9,11 +9,12 @@ def build_interactive_terminal_lines(
     compile_cmd: str = None,
     run_cmd: str = ".\\main.exe",
     dialog_steps: List[Dict[str, Any]] = None,
-    runner_style: str = "codeblocks",
+    runner_style: str = "powershell",
     execution_time: float = 0.042
 ) -> List[str]:
     """
-    Constructs a realistic terminal transcript representing an interactive CLI session.
+    Constructs a realistic plain Windows PowerShell transcript representing an interactive CLI session
+    (no artificial badge/color style tags).
     dialog_steps is a list of dicts or tuples:
       - {'type': 'output', 'text': '=== MENU ==='}
       - {'type': 'input', 'prompt': 'Pilih menu [1-4]: ', 'value': '1'}
@@ -41,44 +42,36 @@ def build_interactive_terminal_lines(
             if stype == "input":
                 prompt = step[1]
                 val = step[2] if len(step) > 2 else ""
-                lines.append(f"{prompt}[[INPUT]]{val}[[/INPUT]]")
-            elif stype == "header":
-                lines.append(f"[[HEADER]]{step[1]}[[/HEADER]]")
-            elif stype == "success":
-                lines.append(f"[[SUCCESS]]{step[1]}[[/SUCCESS]]")
+                lines.append(f"{prompt}{val}")
             elif stype == "blank":
                 lines.append("")
             else:
-                lines.append(step[1])
+                lines.append(str(step[1]))
         elif isinstance(step, dict):
             stype = step.get("type", "output")
             if stype == "input":
                 prompt = step.get("prompt", "")
                 val = step.get("value", "")
-                lines.append(f"{prompt}[[INPUT]]{val}[[/INPUT]]")
-            elif stype == "header":
-                lines.append(f"[[HEADER]]{step.get('text', '')}[[/HEADER]]")
-            elif stype == "success":
-                lines.append(f"[[SUCCESS]]{step.get('text', '')}[[/SUCCESS]]")
+                lines.append(f"{prompt}{val}")
             elif stype == "blank":
                 lines.append("")
             else:
-                lines.append(step.get("text", ""))
+                lines.append(str(step.get("text", "")))
         else:
             lines.append(str(step))
 
-    # Runner exit trailer matching authentic IDE terminal styles
+    # Runner exit trailer matching authentic console styles (plain text, no artificial tags)
     if runner_style == "codeblocks":
         lines.append("")
-        lines.append(f"[[MUTED]]--------------------------------------------------------------------------------[[/MUTED]]")
-        lines.append(f"[[MUTED]]Process returned 0 (0x0)   execution time : {execution_time:.3f} s[[/MUTED]]")
-        lines.append(f"[[MUTED]]Press any key to continue.[[/MUTED]]")
-    elif runner_style == "powershell":
-        lines.append("")
-        lines.append(f"{ps_prompt} ")
+        lines.append("-" * 80)
+        lines.append(f"Process returned 0 (0x0)   execution time : {execution_time:.3f} s")
+        lines.append("Press any key to continue.")
     elif runner_style == "netbeans":
         lines.append("")
-        lines.append(f"[[SUCCESS]]BUILD SUCCESSFUL (total time: {int(execution_time * 10 + 1)} seconds)[[/SUCCESS]]")
+        lines.append(f"BUILD SUCCESSFUL (total time: {int(execution_time * 10 + 1)} seconds)")
+    else:
+        lines.append("")
+        lines.append(f"{ps_prompt} ")
 
     return lines
 
@@ -292,7 +285,7 @@ def run_interactive_command(
         out_lines = proc.stdout.splitlines() if proc.stdout else []
         if proc.stderr:
             err_lines = proc.stderr.splitlines()
-            out_lines.extend([f"[[MUTED]]{l}[[/MUTED]]" for l in err_lines])
+            out_lines.extend(err_lines)
         return out_lines
     except subprocess.TimeoutExpired:
         return ["[ERROR] Program interactive timed out (> 12 detik)."]
@@ -309,12 +302,13 @@ def render_interactive_session_to_image(
     student_nim: str = "109092500017",
     compile_cmd: str = None,
     run_cmd: str = ".\\main.exe",
-    runner_style: str = "codeblocks",
-    window_title: str = "Windows PowerShell - Interactive Execution"
+    runner_style: str = "powershell",
+    window_title: str = "Windows PowerShell",
+    scale: float = 1.0,
 ) -> str:
     """
-    All-in-one generator: generates an interactive scenario, formats the transcript,
-    and calls the authentic terminal renderer to output an image.
+    All-in-one generator: generates an interactive scenario, formats the plain PowerShell transcript,
+    and calls the native Windows 11 PowerShell terminal renderer to output an image.
     """
     from ngelaprak.renderers.terminal_renderer import render_terminal_output
 
@@ -335,4 +329,4 @@ def render_interactive_session_to_image(
     )
 
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-    return render_terminal_output(window_title, lines, out_path=out_path)
+    return render_terminal_output(window_title, lines, out_path=out_path, scale=scale)

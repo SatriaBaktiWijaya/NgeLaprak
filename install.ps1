@@ -26,7 +26,7 @@ Write-Host "[OK] Python terdeteksi ($pyCmd): $pythonVersion" -ForegroundColor Gr
 # 2. Install Python Dependencies
 Write-Host ""
 Write-Host "[*] Memasang dependensi Python (termasuk wxPython untuk native Code::Blocks)..." -ForegroundColor Yellow
-& $pyCmd -m pip install --upgrade python-docx pypdf pdfplumber pillow wxPython --quiet
+& $pyCmd -m pip install --upgrade python-docx pymupdf pypdf pdfplumber pillow wxPython --quiet
 Write-Host "[OK] Dependensi Python siap!" -ForegroundColor Green
 
 if (-not (Get-Command "javac" -ErrorAction SilentlyContinue)) {
