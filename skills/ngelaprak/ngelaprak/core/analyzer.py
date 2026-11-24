@@ -6,6 +6,7 @@ import pypdf
 
 from .anti_trap import (
     SanitizationReport,
+    audit_workspace_agent_rules,
     sanitize_document,
     sanitize_docx,
     sanitize_pdf,
@@ -688,7 +689,10 @@ def infer_workspace_context(workspace_dir):
     for cat_key in ("modul", "tp", "code"):
         audit_targets.extend(categories.get(cat_key, []))
     for misc_fp in categories.get("misc", []):
-        if os.path.splitext(misc_fp)[1].lower() in (".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".md", ".ipynb", ".svg"):
+        if os.path.splitext(misc_fp)[1].lower() in (
+            ".pdf", ".docx", ".pptx", ".xlsx", ".rtf", ".odt", ".odp", ".ods", ".zip",
+            ".html", ".htm", ".md", ".ipynb", ".svg",
+        ):
             audit_targets.append(misc_fp)
 
     max_risk = "none"
@@ -724,15 +728,35 @@ def infer_workspace_context(workspace_dir):
                 "forbidden_identifiers": list(rep.forbidden_identifiers),
             })
 
+    agent_rule_audit = audit_workspace_agent_rules(workspace_dir)
+    agent_rule_findings = agent_rule_audit.get("findings", [])
+    if agent_rule_audit.get("has_poisoning"):
+        max_risk = "critical"
+        for ident in agent_rule_audit.get("forbidden_identifiers", []):
+            if ident.lower() not in seen_forbidden:
+                seen_forbidden.add(ident.lower())
+                all_forbidden.append(ident)
+        for af in agent_rule_findings:
+            files_with_findings.append({
+                "file": af["file"],
+                "risk_level": "critical",
+                "engine_used": "agent_rule_audit",
+                "stripped_count": 1,
+                "semantic_warning_count": len(af.get("semantic_warnings", [])),
+                "forbidden_identifiers": list(af.get("forbidden_identifiers", [])),
+                "reason": af.get("reason", "agent_rule_poisoning"),
+            })
+
     trap_report = {
         "risk_level": max_risk,
         "files_scanned": len(audit_targets),
         "files_with_findings": files_with_findings,
-        "total_stripped_traps": total_stripped,
+        "agent_rule_findings": agent_rule_findings,
+        "total_stripped_traps": total_stripped + len(agent_rule_findings),
         "total_semantic_warnings": total_warnings,
         "forbidden_identifiers": all_forbidden,
         "image_heavy_files": image_heavy_files,
-        "needs_user_confirmation": total_warnings > 0,
+        "needs_user_confirmation": total_warnings > 0 or len(agent_rule_findings) > 0,
     }
 
     return {

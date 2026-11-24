@@ -27,6 +27,7 @@ import math
 import os
 import re
 import tempfile
+import unicodedata
 import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
@@ -313,6 +314,18 @@ _ZERO_WIDTH_CHARS = {
     "\u2062",  # INVISIBLE TIMES
     "\u2063",  # INVISIBLE SEPARATOR
     "\u2064",  # INVISIBLE PLUS
+    "\u180B",  # MONGOLIAN FREE VARIATION SELECTOR ONE
+    "\u180C",  # MONGOLIAN FREE VARIATION SELECTOR TWO
+    "\u180D",  # MONGOLIAN FREE VARIATION SELECTOR THREE
+    "\u180F",  # MONGOLIAN FREE VARIATION SELECTOR FOUR
+    "\u115F",  # HANGUL CHOSEONG FILLER
+    "\u1160",  # HANGUL JUNGSEONG FILLER
+    "\u3164",  # HANGUL FILLER
+    "\uFFA0",  # HALFWIDTH HANGUL FILLER
+    "\u2800",  # BRAILLE PATTERN BLANK
+    "\uFFF9",  # INTERLINEAR ANNOTATION ANCHOR
+    "\uFFFA",  # INTERLINEAR ANNOTATION SEPARATOR
+    "\uFFFB",  # INTERLINEAR ANNOTATION TERMINATOR
 }
 
 _BIDI_OVERRIDE_CHARS = {
@@ -379,9 +392,23 @@ _HOMOGLYPH_MAP: Dict[str, str] = {
     "\u03A4": "T",  # Τ
     "\u03A5": "Y",  # Υ
     "\u03A7": "X",  # Χ
+    # Armenian / IPA / Latin-extended confusables
+    "\u0570": "h",  # հ
+    "\u0578": "n",  # ո
+    "\u0585": "o",  # օ
+    "\u0261": "g",  # ɡ
+    "\u026A": "I",  # ɪ
+    "\u029F": "L",  # ʟ
+    "\u0131": "i",  # ı
+    "\u017F": "s",  # ſ
 }
 
 _GREEK_MATH_STANDALONE = {"\u03B1", "\u03C1", "\u03BD"}
+
+
+def _is_math_or_fullwidth_latin(ch: str) -> bool:
+    cp = ord(ch)
+    return (0x1D400 <= cp <= 0x1D7FF) or (0xFF21 <= cp <= 0xFF5A)
 
 
 def _is_variation_selector(cp: int) -> bool:
@@ -554,12 +581,37 @@ def sanitize_text(
             )
         )
 
+    # Detect & normalize Mathematical Alphanumeric / Fullwidth Latin NFKC obfuscation when suspicious
+    obf_tokens = [
+        tok
+        for tok in re.findall(r"\S+", cleaned)
+        if any(_is_math_or_fullwidth_latin(c) for c in tok)
+    ]
+    obfuscated_count = 0
+    if obf_tokens:
+        nfkc_shadow = unicodedata.normalize("NFKC", cleaned)
+        if nfkc_shadow != cleaned and _is_suspicious_channel_text(nfkc_shadow):
+            obfuscated_count = len(obf_tokens)
+            findings.append(
+                _make_trap(
+                    reason="unicode_obfuscated_script",
+                    text=f"Normalized NFKC obfuscated Latin sequence(s): {' '.join(obf_tokens[:6])}",
+                    location=location,
+                    severity="high",
+                    details={"count": obfuscated_count},
+                )
+            )
+            cleaned = "".join(
+                unicodedata.normalize("NFKC", c) if _is_math_or_fullwidth_latin(c) else c
+                for c in cleaned
+            )
+
     stats = {
         "zero_width_removed": len(zw_chars),
         "tag_block_removed": sum(len(c) for c in tag_chunks) or len(tag_chunks),
         "variation_selector_removed": len(vs_chars),
         "bidi_override_removed": len(bidi_chars),
-        "homoglyph_normalized": len(homoglyph_replacements),
+        "homoglyph_normalized": len(homoglyph_replacements) + obfuscated_count,
     }
     return cleaned, findings, stats
 
@@ -620,6 +672,29 @@ _DIRECTIVE_IDENT_PATTERNS: List[re.Pattern[str]] = [
         r"(?:komentar|comment|watermark|canary|signature|tag|kalimat|string|teks)\s+"
         r"(?:berupa\s+|yaitu\s+|berisi\s+)?"
         r"[\"'`]([^\"'`]{3,64})[\"'`]",
+        re.IGNORECASE,
+    ),
+    # Identifier before noun: "gunakan X sebagai nama variabel / fungsi / class"
+    re.compile(
+        r"\b(?:gunakan|pakai|use)\s+[\"'`]?([A-Za-z_][A-Za-z0-9_]{1,48})[\"'`]?\s+"
+        r"(?:sebagai|as)\s+(?:nama\s+)?(?:variabel|variable|var|fungsi|function|prosedur|procedure|class|kelas|method|metode)\b",
+        re.IGNORECASE,
+    ),
+    # Rename directives: "ubah nama fungsi menjadi X" / "rename variable to X"
+    re.compile(
+        r"\b(?:ubah|ganti|rename)\s+(?:nama\s+)?(?:variabel|variable|var|fungsi|function|prosedur|procedure|class|kelas|method|metode)\b"
+        r"[^.!?\n]{0,40}?\b(?:menjadi|ke|to|as)\s+[\"'`]?([A-Za-z_][A-Za-z0-9_]{1,48})[\"'`]?",
+        re.IGNORECASE,
+    ),
+    # Output / print canary directives: cetak kata 'kucing' di akhir
+    re.compile(
+        r"\b(?:cetak|tampilkan|print|output|keluarkan)\s+(?:kata|teks|kalimat|string|pesan)\s+"
+        r"[\"'`]([^\"'`]{2,64})[\"'`]",
+        re.IGNORECASE,
+    ),
+    # Explicit naming phrase: "variabel bernama X" / "variable named X"
+    re.compile(
+        r"\b(?:variabel|variable)\s+(?:bernama|named|called)\s+[\"'`]?([A-Za-z_][A-Za-z0-9_]{1,48})[\"'`]?",
         re.IGNORECASE,
     ),
 ]
@@ -731,6 +806,36 @@ _SEMANTIC_TRAP_RULES: List[Tuple[str, str, re.Pattern[str], str]] = [
         ),
         "high",
     ),
+    (
+        "prompt_injection",
+        "chat_template_spoofing",
+        re.compile(
+            r"(?:<\|im_start\|>|<\|im_end\|>|<\|eot_id\|>|\[/?INST\]|"
+            r"^\s*###\s*(?:System|Instruction)\s*:|</(?:document|context|user)>\s*<(?:system|instructions?)>)",
+            re.IGNORECASE,
+        ),
+        "high",
+    ),
+    (
+        "prompt_injection",
+        "encoded_payload_directive",
+        re.compile(
+            r"\b(?:decode|dekode|terjemahkan)\s+(?:this\s+|berikut\s+)?(?:base64|hex|rot13)\b",
+            re.IGNORECASE,
+        ),
+        "high",
+    ),
+    (
+        "ai_meta_instruction",
+        "indonesian_ai_meta",
+        re.compile(
+            r"(?:\b(?:khusus|bagi|untuk)\s+(?:pengguna\s+|model\s+)?(?:ai|llm|chatgpt|claude|gemini)\b|"
+            r"\b(?:hai|halo)\s+(?:chatgpt|claude|gemini)\b|"
+            r"\btanpa\s+diketahui\s+(?:mahasiswa|user|pengguna)\b)",
+            re.IGNORECASE,
+        ),
+        "high",
+    ),
 ]
 
 
@@ -754,23 +859,28 @@ def extract_forbidden_identifiers(text: str) -> List[str]:
             seen_lower.add(cand.lower())
             found.append(cand)
 
-    for idx, pat in enumerate(_DIRECTIVE_IDENT_PATTERNS):
-        for m in pat.finditer(text):
-            first = m.group(1)
-            if idx == 2:
-                # Quoted comment / watermark phrase
-                _add(first)
-                # Also extract distinctive identifier-like tokens inside the quoted phrase
-                for sub_tok in re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,40}\b", first):
-                    if sub_tok.lower() not in _IDENTIFIER_STOPWORDS:
-                        _add(sub_tok)
-            else:
-                _add(first)
-                tail = m.group(2) if m.lastindex and m.lastindex >= 2 else ""
-                if tail:
-                    for extra in re.findall(r"[\"'`]?([A-Za-z_][A-Za-z0-9_]{1,48})[\"'`]?", tail):
-                        if extra.lower() not in ("dan", "and", "atau", "or"):
-                            _add(extra)
+    variants = [text]
+    nfkc_text = unicodedata.normalize("NFKC", text)
+    if nfkc_text != text:
+        variants.append(nfkc_text)
+
+    for variant in variants:
+        for idx, pat in enumerate(_DIRECTIVE_IDENT_PATTERNS):
+            for m in pat.finditer(variant):
+                first = m.group(1)
+                if idx in (2, 5):
+                    # Quoted comment / watermark / output phrase
+                    _add(first)
+                    for sub_tok in re.findall(r"\b[A-Za-z_][A-Za-z0-9_]{2,40}\b", first):
+                        if sub_tok.lower() not in _IDENTIFIER_STOPWORDS:
+                            _add(sub_tok)
+                else:
+                    _add(first)
+                    tail = m.group(2) if m.lastindex and m.lastindex >= 2 else ""
+                    if tail:
+                        for extra in re.findall(r"[\"'`]?([A-Za-z_][A-Za-z0-9_]{1,48})[\"'`]?", tail):
+                            if extra.lower() not in ("dan", "and", "atau", "or"):
+                                _add(extra)
 
     return found
 
@@ -779,15 +889,16 @@ def _is_suspicious_channel_text(text: str) -> bool:
     """Returns True if text from metadata/annotations/comments looks like a directive or trap."""
     if not text or not text.strip():
         return False
-    if extract_forbidden_identifiers(text):
+    nfkc = unicodedata.normalize("NFKC", text)
+    if extract_forbidden_identifiers(nfkc):
         return True
     for _, _, pat, _ in _SEMANTIC_TRAP_RULES:
-        if pat.search(text):
+        if pat.search(nfkc) or pat.search(text):
             return True
     if re.search(
         r"\b(?:tambahkan|sisipkan|gunakan\s+variabel|add\s+variable|insert\s+comment|"
         r"ignore\s+previous|abaikan\s+instruksi|prompt|chatgpt|claude|gemini|llm)\b",
-        text,
+        nfkc,
         re.IGNORECASE,
     ):
         return True
@@ -811,13 +922,14 @@ def detect_semantic_traps(
         line = raw_line.strip()
         if not line:
             continue
+        nfkc_line = unicodedata.normalize("NFKC", line)
         for category, rule_name, pat, severity in _SEMANTIC_TRAP_RULES:
-            if pat.search(line):
-                key = (rule_name, line.lower())
+            if pat.search(line) or pat.search(nfkc_line):
+                key = (rule_name, nfkc_line.lower())
                 if key in seen_keys:
                     continue
                 seen_keys.add(key)
-                candidates = extract_forbidden_identifiers(line)
+                candidates = extract_forbidden_identifiers(nfkc_line)
                 warnings.append(
                     _make_warning(
                         category=category,
@@ -830,6 +942,72 @@ def detect_semantic_traps(
                     )
                 )
     return warnings
+
+
+_COALESCE_REASONS = {
+    "white_text",
+    "low_contrast",
+    "occluded_text",
+    "micro_font",
+    "invisible_render_mode",
+    "low_opacity",
+    "off_page",
+    "docx_vanish",
+    "docx_web_hidden",
+    "docx_low_contrast",
+    "docx_micro_font",
+    "pptx_hidden_text",
+    "pptx_micro_font",
+    "rtf_hidden_text",
+    "odf_hidden_text",
+}
+
+
+def _coalesce_traps(traps: List[TrapRecord]) -> List[TrapRecord]:
+    """
+    Coalesces consecutive fragmented spans/runs on the SAME line or incomplete clause
+    (e.g. 'Tambahkan ' + 'variabel split_id') while keeping separate multi-line traps distinct.
+    """
+    if not traps:
+        return traps
+    coalesced: List[TrapRecord] = []
+    for t in traps:
+        cur_copy = TrapRecord(t)
+        if t.get("details"):
+            cur_copy["details"] = dict(t["details"])
+        if coalesced:
+            prev = coalesced[-1]
+            same_bucket = (
+                t.get("reason") in _COALESCE_REASONS
+                and prev.get("reason") == t.get("reason")
+                and prev.get("location") == t.get("location")
+                and len(prev.get("text", "")) < 800
+            )
+            if same_bucket:
+                prev_txt = prev.get("text", "")
+                cur_txt = t.get("text", "")
+                prev_bbox = (prev.get("details") or {}).get("bbox")
+                cur_bbox = (t.get("details") or {}).get("bbox")
+                if prev_bbox and cur_bbox and len(prev_bbox) >= 4 and len(cur_bbox) >= 4:
+                    same_fragment = abs(float(prev_bbox[1]) - float(cur_bbox[1])) <= 4.5
+                else:
+                    same_fragment = (
+                        not prev_txt.rstrip().endswith((".", "!", "?"))
+                        and not extract_forbidden_identifiers(prev_txt)
+                    )
+                if same_fragment:
+                    sep = "" if (not prev_txt or not cur_txt or prev_txt.endswith((" ", "\n")) or cur_txt.startswith((" ", "\n", ".", ",", ";", ":"))) else " "
+                    prev["text"] = f"{prev_txt}{sep}{cur_txt}".strip()
+                    if prev_bbox and cur_bbox and len(prev_bbox) >= 4 and len(cur_bbox) >= 4:
+                        prev["details"]["bbox"] = [
+                            min(float(prev_bbox[0]), float(cur_bbox[0])),
+                            min(float(prev_bbox[1]), float(cur_bbox[1])),
+                            max(float(prev_bbox[2]), float(cur_bbox[2])),
+                            max(float(prev_bbox[3]), float(cur_bbox[3])),
+                        ]
+                    continue
+        coalesced.append(cur_copy)
+    return coalesced
 
 
 def _compute_risk_level(
@@ -847,7 +1025,9 @@ def _compute_risk_level(
         "alpha_channel_stego_suspected",
         "unicode_bidi_override",
         "unicode_tag_block",
+        "unicode_obfuscated_script",
         "code_prompt_injection",
+        "agent_rule_poisoning",
     }
 
     if (
@@ -875,7 +1055,7 @@ def _finalize_report(
     stats: Optional[Dict[str, Any]] = None,
     run_unicode_on_clean: bool = True,
 ) -> SanitizationReport:
-    all_traps = list(stripped_traps)
+    all_traps = _coalesce_traps(list(stripped_traps))
     all_warnings = list(extra_warnings or [])
     report_stats = dict(stats or {})
 
@@ -915,6 +1095,25 @@ def _finalize_report(
         decoded = (trap.get("details") or {}).get("decoded_payload", "")
         if decoded:
             _add_forbidden(extract_forbidden_identifiers(decoded))
+
+    # Cross-line coalesced pass ONLY for forbidden-identifier extraction (preserves distinct TrapRecords)
+    if all_traps:
+        buf_key: Optional[Tuple[str, str]] = None
+        buf_parts: List[str] = []
+        for trap in all_traps:
+            key = (trap.get("location", ""), trap.get("reason", ""))
+            txt = (trap.get("text") or "").strip()
+            if not txt:
+                continue
+            if buf_key == key and sum(len(p) for p in buf_parts) < 1200:
+                buf_parts.append(txt)
+            else:
+                if len(buf_parts) > 1:
+                    _add_forbidden(extract_forbidden_identifiers(" ".join(buf_parts)))
+                buf_key = key
+                buf_parts = [txt]
+        if len(buf_parts) > 1:
+            _add_forbidden(extract_forbidden_identifiers(" ".join(buf_parts)))
 
     report_stats["stripped_count"] = len(all_traps)
     report_stats["semantic_warning_count"] = len(all_warnings)
@@ -1271,6 +1470,22 @@ def _sanitize_pdf_pymupdf(
             traces = page.get_texttrace() or []
             drawings = page.get_drawings() or []
             img_infos = page.get_image_info(xrefs=True) or []
+            bboxlog = page.get_bboxlog() or []
+
+            # Map `fill-image` seqno indices from bboxlog to opaque image rects (for z-order occlusion)
+            fill_img_logs = [(idx, bb) for idx, (kind, bb) in enumerate(bboxlog) if kind == "fill-image"]
+            opaque_images: List[Tuple[int, Tuple[float, float, float, float]]] = []
+            for img_i, info in enumerate(img_infos):
+                if info.get("has-mask", False):
+                    continue
+                ib = info.get("bbox")
+                if not ib:
+                    continue
+                img_seq = int(info.get("number", -1))
+                # Match bboxlog index if available for exact z-order against texttrace seqno
+                if img_i < len(fill_img_logs):
+                    img_seq = max(img_seq, fill_img_logs[img_i][0])
+                opaque_images.append((img_seq, tuple(float(v) for v in ib)))
 
             # Build opaque drawings list with seqno for z-order occlusion check
             opaque_drawings: List[Tuple[int, Tuple[float, float, float, float], Optional[Tuple[int, int, int]]]] = []
@@ -1310,6 +1525,7 @@ def _sanitize_pdf_pymupdf(
             page_dict = page.get_text("dict")
             page_lines: List[str] = []
             visible_char_count = 0
+            dict_span_bboxes: List[Tuple[float, float, float, float]] = []
 
             for block in page_dict.get("blocks", []):
                 if block.get("type", 0) != 0:
@@ -1325,6 +1541,7 @@ def _sanitize_pdf_pymupdf(
                             continue
 
                         sb = tuple(float(v) for v in span.get("bbox", (0, 0, 0, 0)))
+                        dict_span_bboxes.append(sb)
                         size = float(span.get("size", 0.0))
                         color_int = int(span.get("color", 0))
                         span_rgb = _int_color_to_rgb(color_int)
@@ -1356,6 +1573,10 @@ def _sanitize_pdf_pymupdf(
                             "bbox": [round(v, 2) for v in sb],
                         }
 
+                        span_w = max(0.0, sb[2] - sb[0])
+                        span_h = max(0.0, sb[3] - sb[1])
+                        stripped_len = len(raw_span_text.strip())
+
                         # Check 1: Off-page / clipped
                         if (
                             sb[2] <= crop.x0 + 0.5
@@ -1375,13 +1596,21 @@ def _sanitize_pdf_pymupdf(
                             strip_reason = "low_opacity"
                             strip_details["opacity"] = round(min(opacity, tr_opacity), 3)
 
-                        # Check 4: Micro-font or collapsed bbox
+                        # Check 4: Micro-font, rotated micro-text, collapsed bbox, or 1 Tz horizontal scaling collapse
                         elif (
                             size < min_font_size
-                            or (sb[3] - sb[1]) < min_font_size
-                            or ((sb[2] - sb[0]) * (sb[3] - sb[1])) < 1.0
+                            or min(span_w, span_h) < min_font_size
+                            or (span_w * span_h) < 1.0
+                            or (stripped_len >= 5 and (max(span_w, span_h) / stripped_len) < 0.8)
                         ):
                             strip_reason = "micro_font"
+
+                        # Check 4b: Z-order occlusion by opaque raster image drawn AFTER text
+                        elif span_seqno >= 0 and any(
+                            img_seq > span_seqno and _bbox_overlap_ratio(sb, img_bb) >= 0.75
+                            for img_seq, img_bb in opaque_images
+                        ):
+                            strip_reason = "occluded_text"
 
                         else:
                             # Check 5: Pixel-sampled WCAG contrast & occlusion detection
@@ -1434,7 +1663,50 @@ def _sanitize_pdf_pymupdf(
                     if joined_line.strip():
                         page_lines.append(joined_line)
 
+            # Audit clipping-path hidden text (present in texttrace inside cropbox, omitted from get_text("dict"))
+            for tr in traces:
+                tr_text = "".join(chr(c[0]) for c in tr.get("chars", [])).strip()
+                if not tr_text:
+                    continue
+                tb = tuple(float(v) for v in tr.get("bbox", (0, 0, 0, 0)))
+                inside_crop = (
+                    tb[2] > crop.x0 + 0.5
+                    and tb[0] < crop.x1 - 0.5
+                    and tb[3] > crop.y0 + 0.5
+                    and tb[1] < crop.y1 - 0.5
+                )
+                if not inside_crop:
+                    continue
+                if tr.get("type", 0) == 3 or (tr.get("opacity") is not None and float(tr.get("opacity", 1.0)) < min_opacity):
+                    continue
+                if not any(_bbox_overlap_ratio(tb, db) >= 0.1 for db in dict_span_bboxes):
+                    stripped_traps.append(
+                        _make_trap(
+                            reason="pdf_clipped_text",
+                            text=tr_text,
+                            location=loc,
+                            severity="high",
+                            details={"bbox": [round(v, 2) for v in tb]},
+                        )
+                    )
+
             clean_pages.append("\n".join(page_lines))
+
+            # Audit Hyperlink URIs
+            try:
+                for lnk in page.get_links() or []:
+                    uri = str(lnk.get("uri", "") or "").strip()
+                    if uri and _is_suspicious_channel_text(uri):
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="pdf_hyperlink",
+                                text=uri[:500],
+                                location=f"{loc} (link)",
+                                severity="high",
+                            )
+                        )
+            except Exception:
+                pass
 
             # 2. Audit Annotations (never merged into clean_text)
             try:
@@ -1552,6 +1824,71 @@ def _sanitize_pdf_pymupdf(
                         details={"layers": sorted(off_ocg_names)},
                     )
                 )
+
+        # 6. Audit Bookmarks / TOC
+        try:
+            for lvl, title, _pno in doc.get_toc() or []:
+                if title and _is_suspicious_channel_text(str(title)):
+                    stripped_traps.append(
+                        _make_trap(
+                            reason="pdf_bookmark",
+                            text=str(title)[:500],
+                            location=f"pdf_toc:level_{lvl}",
+                            severity="high",
+                        )
+                    )
+        except Exception:
+            pass
+
+        # 7. Audit Embedded File Attachments
+        try:
+            for emb_name in doc.embfile_names() or []:
+                emb_txt = ""
+                try:
+                    raw_emb = doc.embfile_get(emb_name)
+                    if isinstance(raw_emb, bytes) and len(raw_emb) <= 262144:
+                        emb_txt = raw_emb.decode("utf-8", errors="ignore")[:800]
+                except Exception:
+                    pass
+                combined = f"{emb_name}: {emb_txt}".strip(": ")
+                is_susp = _is_suspicious_channel_text(combined)
+                stripped_traps.append(
+                    _make_trap(
+                        reason="pdf_attachment",
+                        text=combined[:500],
+                        location=f"pdf_attachment:{emb_name}",
+                        severity="high" if is_susp else "medium",
+                    )
+                )
+        except Exception:
+            pass
+
+        # 8. Audit Tagged PDF /Alt & /ActualText attributes (capped to avoid large-doc slowdown)
+        try:
+            xref_cap = min(doc.xref_length(), 2000)
+            for xref in range(1, xref_cap):
+                obj_str = doc.xref_object(xref, compressed=False)
+                if not obj_str or ("/Alt" not in obj_str and "/ActualText" not in obj_str):
+                    continue
+                for key_m in re.finditer(r"/(Alt|ActualText)\s*(?:\(([^()]*)\)|<([0-9A-Fa-f]+)>)", obj_str):
+                    val = key_m.group(2)
+                    if val is None and key_m.group(3):
+                        try:
+                            raw_b = bytes.fromhex(key_m.group(3))
+                            val = raw_b.decode("utf-16-be" if raw_b.startswith(b"\xfe\xff") else "latin-1", errors="ignore")
+                        except Exception:
+                            val = ""
+                    if val and _is_suspicious_channel_text(val):
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="pdf_tagged_alt_text",
+                                text=val.strip()[:500],
+                                location=f"pdf_xref:{xref}/{key_m.group(1)}",
+                                severity="high",
+                            )
+                        )
+        except Exception:
+            pass
 
     finally:
         doc.close()
@@ -1937,6 +2274,46 @@ def _parse_inline_style(style_str: str) -> Dict[str, str]:
     return res
 
 
+def _parse_css_rules(css_text: str) -> Dict[str, Dict[str, str]]:
+    """Parses simple CSS selector blocks (.class, #id, tag) from <style> blocks."""
+    rules: Dict[str, Dict[str, str]] = {}
+    if not css_text:
+        return rules
+    cleaned_css = re.sub(r"/\*.*?\*/", "", css_text, flags=re.DOTALL)
+    for m in re.finditer(r"([^{}]+)\{([^{}]+)\}", cleaned_css):
+        selectors = [s.strip().lower() for s in m.group(1).split(",") if s.strip()]
+        decls = _parse_inline_style(m.group(2))
+        if not decls:
+            continue
+        for sel in selectors:
+            rules.setdefault(sel, {}).update(decls)
+    return rules
+
+
+def _resolve_css_for_element(
+    tag: str,
+    attr_dict: Dict[str, Optional[str]],
+    css_rules: Optional[Dict[str, Dict[str, str]]],
+) -> Dict[str, str]:
+    """Merges tag, .class, #id CSS rules and inline style='' (inline wins)."""
+    merged: Dict[str, str] = {}
+    if css_rules:
+        tl = tag.lower()
+        if tl in css_rules:
+            merged.update(css_rules[tl])
+        for cls_tok in (attr_dict.get("class") or "").split():
+            key = f".{cls_tok.strip().lower()}"
+            if key in css_rules:
+                merged.update(css_rules[key])
+        el_id = (attr_dict.get("id") or "").strip().lower()
+        if el_id:
+            id_key = f"#{el_id}"
+            if id_key in css_rules:
+                merged.update(css_rules[id_key])
+    merged.update(_parse_inline_style(attr_dict.get("style") or ""))
+    return merged
+
+
 def _parse_css_font_size_pt(val: Optional[str]) -> Optional[float]:
     if not val:
         return None
@@ -2010,11 +2387,17 @@ def sanitize_svg(
         if w_m and h_m:
             vb_bounds = (0.0, 0.0, float(w_m.group(1)), float(h_m.group(1)))
 
+    # Collect <style> rules inside SVG
+    css_rules: Dict[str, Dict[str, str]] = {}
+    for st_el in root.iter():
+        if _local(st_el.tag) == "style" and st_el.text:
+            css_rules.update(_parse_css_rules(st_el.text))
+
     # Detect background color from a full-size initial <rect> if present
     bg_rgb: Tuple[int, int, int] = (255, 255, 255)
     for child in list(root)[:4]:
         if _local(child.tag) == "rect":
-            st = _parse_inline_style(child.attrib.get("style", ""))
+            st = _resolve_css_for_element("rect", dict(child.attrib), css_rules)
             fill_val = st.get("fill") or child.attrib.get("fill")
             rgb, a = parse_css_color(fill_val)
             if rgb is not None and (a is None or a > 0.8):
@@ -2047,13 +2430,23 @@ def sanitize_svg(
             return
         if tag == "style":
             return
+        if tag == "foreignobject":
+            inner_html = "".join(ET.tostring(c, encoding="unicode") for c in elem)
+            if inner_html.strip():
+                fo_rep = sanitize_markup(inner_html, markup_type="html", is_text=True)
+                stripped_traps.extend(fo_rep.stripped_traps)
+                if fo_rep.clean_text:
+                    clean_lines.append(fo_rep.clean_text)
+            return
 
-        st = _parse_inline_style(elem.attrib.get("style", ""))
-        display = (st.get("display") or elem.attrib.get("display") or "").strip().lower()
-        visibility = (st.get("visibility") or elem.attrib.get("visibility") or "").strip().lower()
+        elem_attrs = {k.lower(): v for k, v in elem.attrib.items()}
+        st = _resolve_css_for_element(tag, elem_attrs, css_rules)
+        display = (st.get("display") or elem_attrs.get("display") or "").strip().lower()
+        visibility = (st.get("visibility") or elem_attrs.get("visibility") or "").strip().lower()
+        transform = (st.get("transform") or elem_attrs.get("transform") or "").strip().lower()
 
-        op_str = st.get("opacity") or elem.attrib.get("opacity")
-        fill_op_str = st.get("fill-opacity") or elem.attrib.get("fill-opacity")
+        op_str = st.get("opacity") or elem_attrs.get("opacity")
+        fill_op_str = st.get("fill-opacity") or elem_attrs.get("fill-opacity")
         cur_op = inherited_opacity
         for ostr in (op_str, fill_op_str):
             if ostr is not None:
@@ -2062,7 +2455,7 @@ def sanitize_svg(
                 except ValueError:
                     pass
 
-        fill_str = st.get("fill") or elem.attrib.get("fill")
+        fill_str = st.get("fill") or elem_attrs.get("fill")
         cur_fill = inherited_fill
         if fill_str is not None:
             if fill_str.strip().lower() == "none":
@@ -2074,13 +2467,15 @@ def sanitize_svg(
                 if ca is not None:
                     cur_op = min(cur_op, ca)
 
-        fsize_str = st.get("font-size") or elem.attrib.get("font-size")
+        fsize_str = st.get("font-size") or elem_attrs.get("font-size")
         parsed_fs = _parse_css_font_size_pt(fsize_str)
         cur_fs = parsed_fs if parsed_fs is not None else inherited_fsize
 
         cur_hidden = inherited_hidden
         if cur_hidden is None:
             if display == "none" or visibility == "hidden":
+                cur_hidden = "svg_hidden_element"
+            elif re.search(r"scale[xy]?\(\s*0(?:\.0+)?\s*(?:,|\))", transform):
                 cur_hidden = "svg_hidden_element"
             elif cur_op < min_opacity:
                 cur_hidden = "svg_low_opacity"
@@ -2160,12 +2555,15 @@ def sanitize_image(
     image_path: str,
     out_image_path: Optional[str] = None,
     alpha_zero_threshold: int = 15,
+    neutralize_low_contrast: bool = True,
 ) -> SanitizationReport:
     """
     Layer 2: Sanitizes raster images (PNG, JPG, JPEG, WEBP, BMP, GIF) and SVG vectors.
     - Audits & strips all metadata (EXIF, XMP, IPTC, JPEG COM, PNG tEXt/iTXt/zTXt).
+    - Detects trailing polyglot bytes (post-IEND / post-FFD9) & multi-frame GIF/APNG.
     - Detects RGB steganography hidden behind alpha == 0 pixels.
-    - Flattens alpha channel (alpha < 15 -> white) onto solid white RGB & saves clean image.
+    - Flattens alpha channel (alpha < 15 -> white) onto solid white RGB & optionally
+      snaps invisible near-background low-contrast RGB pixels (#F6F6F6..#FEFEFE on white).
     """
     if not os.path.exists(image_path):
         return SanitizationReport(
@@ -2185,12 +2583,51 @@ def sanitize_image(
     extra_warnings: List[TrapRecord] = []
     alpha_stego_suspected = False
     had_alpha = False
+    frames_stripped = 0
+    low_contrast_neutralized = 0
     width = height = 0
+
+    # Trailing polyglot inspection (post PNG IEND+CRC or JPEG EOI FF D9)
+    trailing_bytes = b""
+    if raw_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        iend_idx = raw_bytes.find(b"IEND")
+        if iend_idx != -1 and iend_idx + 8 < len(raw_bytes):
+            trailing_bytes = raw_bytes[iend_idx + 8:]
+    elif raw_bytes.startswith(b"\xff\xd8"):
+        eoi_idx = raw_bytes.rfind(b"\xff\xd9")
+        if eoi_idx != -1 and eoi_idx + 2 < len(raw_bytes):
+            trailing_bytes = raw_bytes[eoi_idx + 2:]
+
+    if len(trailing_bytes) >= 8:
+        trailing_txt = re.sub(r"[^\x20-\x7e\r\n\t]+", " ", trailing_bytes.decode("utf-8", errors="ignore")).strip()
+        if len(trailing_txt) >= 4:
+            is_susp = _is_suspicious_channel_text(trailing_txt)
+            stripped_traps.append(
+                _make_trap(
+                    reason="image_trailing_polyglot",
+                    text=trailing_txt[:500],
+                    location=f"{os.path.basename(image_path)}:trailing_bytes",
+                    severity="high" if is_susp else "medium",
+                    details={"trailing_len": len(trailing_bytes)},
+                )
+            )
 
     with Image.open(io.BytesIO(raw_bytes)) as img:
         width, height = img.size
         orig_mode = img.mode
         orig_format = img.format or ext.lstrip(".").upper()
+        n_frames = int(getattr(img, "n_frames", 1) or 1)
+        if n_frames > 1:
+            frames_stripped = n_frames - 1
+            stripped_traps.append(
+                _make_trap(
+                    reason="image_multiframe_stripped",
+                    text=f"Animated image had {n_frames} frames; flattened frame 1 only (dropped {frames_stripped} hidden frame(s))",
+                    location=f"{os.path.basename(image_path)}:frames",
+                    severity="medium",
+                    details={"n_frames": n_frames},
+                )
+            )
 
         # 1. Inspect metadata
         meta_traps, meta_warns = _inspect_pil_metadata(
@@ -2260,6 +2697,39 @@ def sanitize_image(
             rgb_pixels = list(rgb.get_flattened_data()) if hasattr(rgb, "get_flattened_data") else list(rgb.getdata())
             composited.putdata(rgb_pixels)
 
+        # Conservative near-background low-contrast snap (destroys #F8F8F8/#FAFAFA traps on #FFFFFF)
+        if neutralize_low_contrast:
+            final_px = list(composited.get_flattened_data()) if hasattr(composited, "get_flattened_data") else list(composited.getdata())
+            total_px = max(1, len(final_px))
+            pure_white_cnt = sum(1 for (r, g, b) in final_px if r == 255 and g == 255 and b == 255)
+            pure_black_cnt = sum(1 for (r, g, b) in final_px if r == 0 and g == 0 and b == 0)
+
+            snap_white = (pure_white_cnt / total_px) >= 0.25
+            snap_black = (pure_black_cnt / total_px) >= 0.25
+            if snap_white or snap_black:
+                snapped_px: List[Tuple[int, int, int]] = []
+                for (r, g, b) in final_px:
+                    if snap_white and 246 <= r <= 254 and 246 <= g <= 254 and 246 <= b <= 254:
+                        snapped_px.append((255, 255, 255))
+                        low_contrast_neutralized += 1
+                    elif snap_black and 1 <= r <= 10 and 1 <= g <= 10 and 1 <= b <= 10:
+                        snapped_px.append((0, 0, 0))
+                        low_contrast_neutralized += 1
+                    else:
+                        snapped_px.append((r, g, b))
+                if low_contrast_neutralized > 0:
+                    composited.putdata(snapped_px)
+                    if low_contrast_neutralized >= 40:
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="image_low_contrast_neutralized",
+                                text=f"Neutralized {low_contrast_neutralized} invisible near-background RGB pixel(s)",
+                                location=f"{os.path.basename(image_path)}:rgb_contrast",
+                                severity="low",
+                                details={"pixels_neutralized": low_contrast_neutralized},
+                            )
+                        )
+
     # 3. Save clean metadata-free, alpha-flattened copy
     if out_image_path:
         target_out = os.path.abspath(out_image_path)
@@ -2296,6 +2766,8 @@ def sanitize_image(
             "had_alpha": had_alpha,
             "alpha_flattened": had_alpha,
             "alpha_channel_stego_suspected": alpha_stego_suspected,
+            "frames_stripped": frames_stripped,
+            "low_contrast_pixels_neutralized": low_contrast_neutralized,
             "metadata_stripped": True,
         },
         run_unicode_on_clean=False,
@@ -2306,6 +2778,7 @@ def sanitize_image(
 # Layer 3: Academic Document Formats (DOCX, PPTX, XLSX, HTML, Markdown, ipynb, Code)
 # ---------------------------------------------------------------------------
 
+_VML_NS = "urn:schemas-microsoft-com:vml"
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 _A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -2371,6 +2844,33 @@ def _ooxml_bool_prop(parent: Optional[ET.Element], tag: str) -> Optional[bool]:
     return val.lower() not in ("0", "false", "off", "none")
 
 
+def _audit_ooxml_media(
+    zf: zipfile.ZipFile,
+    media_prefix: str,
+    reason_prefix: str,
+) -> Tuple[List[TrapRecord], List[TrapRecord]]:
+    traps: List[TrapRecord] = []
+    warnings: List[TrapRecord] = []
+    for mpath in sorted(n for n in zf.namelist() if n.startswith(media_prefix)):
+        ext = os.path.splitext(mpath)[1].lower()
+        if ext not in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"):
+            continue
+        try:
+            raw = zf.read(mpath)
+            from PIL import Image
+            with Image.open(io.BytesIO(raw)) as pil_im:
+                im_traps, im_warns = _inspect_pil_metadata(
+                    pil_im, raw, location_prefix=mpath
+                )
+                for t in im_traps:
+                    t["reason"] = f"{reason_prefix}_embedded_image_metadata"
+                traps.extend(im_traps)
+                warnings.extend(im_warns)
+        except Exception:
+            pass
+    return traps, warnings
+
+
 def sanitize_docx(
     docx_path: str,
     contrast_threshold: float = 1.8,
@@ -2380,7 +2880,8 @@ def sanitize_docx(
     Layer 3a: Sanitizes DOCX files via OOXML inspection.
     Strips <w:vanish/>, <w:webHidden/> (including via style inheritance), white/low-contrast
     runs vs <w:shd>, micro-font (< 4pt / w:sz < 8), <w:del>, comments.xml, off-canvas
-    textboxes, and audits core metadata.
+    textboxes, VML hidden shapes, Word field codes (<w:instrText>), header/footer/footnote
+    hidden traps, alt-text, embedded media metadata, and core metadata.
     """
     if not os.path.exists(docx_path):
         return SanitizationReport(
@@ -2388,13 +2889,17 @@ def sanitize_docx(
         )
 
     stripped_traps: List[TrapRecord] = []
+    extra_warnings: List[TrapRecord] = []
     clean_paragraphs: List[str] = []
 
     with zipfile.ZipFile(docx_path, "r") as zf:
         names = set(zf.namelist())
 
-        # 1. Audit metadata
+        # 1. Audit metadata & embedded media
         stripped_traps.extend(_audit_ooxml_core_props(zf, reason="docx_metadata"))
+        m_traps, m_warns = _audit_ooxml_media(zf, "word/media/", "docx")
+        stripped_traps.extend(m_traps)
+        extra_warnings.extend(m_warns)
 
         # 2. Audit comments.xml (never included in clean_text)
         if "word/comments.xml" in names:
@@ -2467,7 +2972,6 @@ def sanitize_docx(
             return merged
 
         def _is_off_canvas_drawing(drawing_el: ET.Element) -> bool:
-            # Check <wp:extent cx/cy == 0> or negative / huge <wp:posOffset>
             for ext_el in drawing_el.iter(f"{{{_WP_NS}}}extent"):
                 cx = int(ext_el.attrib.get("cx", "1") or "1")
                 cy = int(ext_el.attrib.get("cy", "1") or "1")
@@ -2476,27 +2980,77 @@ def sanitize_docx(
             for pos_el in drawing_el.iter(f"{{{_WP_NS}}}posOffset"):
                 try:
                     val = int((pos_el.text or "0").strip())
-                    # > 13 inches (11887200 EMU) or < -1 inch (-914400 EMU)
                     if val < -914400 or val > 11887200:
                         return True
                 except ValueError:
                     pass
             return False
 
-        # 4. Walk word/document.xml
-        if "word/document.xml" in names:
-            doc_root = ET.fromstring(zf.read("word/document.xml"))
+        def _is_hidden_vml_shape(shape_el: ET.Element) -> bool:
+            st = _parse_inline_style(shape_el.attrib.get("style", ""))
+            if st.get("visibility", "").lower() == "hidden" or st.get("display", "").lower() == "none":
+                return True
+            for prop in ("left", "margin-left", "top", "margin-top"):
+                m = re.match(r"^\s*-(\d+(?:\.\d+)?)", st.get(prop, ""))
+                if m and float(m.group(1)) >= 400:
+                    return True
+            return False
 
-            # Pre-identify paragraphs inside off-canvas drawings
+        def _scan_xml_part(xml_path: str, loc_prefix: str, collect_clean: bool) -> None:
+            root_el = ET.fromstring(zf.read(xml_path))
+
+            # Audit image alt-text <wp:docPr descr/title> and hyperlink tooltips
+            for docpr in root_el.iter(f"{{{_WP_NS}}}docPr"):
+                for attr in ("descr", "title"):
+                    aval = (docpr.attrib.get(attr) or "").strip()
+                    if aval and _is_suspicious_channel_text(aval):
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="docx_alt_text",
+                                text=aval[:500],
+                                location=f"{loc_prefix}:docPr.{attr}",
+                                severity="high",
+                            )
+                        )
+            for hlink in root_el.iter(_w("hyperlink")):
+                tval = (hlink.attrib.get(_w("tooltip")) or "").strip()
+                if tval and _is_suspicious_channel_text(tval):
+                    stripped_traps.append(
+                        _make_trap(
+                            reason="docx_alt_text",
+                            text=tval[:500],
+                            location=f"{loc_prefix}:hyperlink.tooltip",
+                            severity="high",
+                        )
+                    )
+
+            # Audit Word Field Codes <w:instrText>
+            for instr in root_el.iter(_w("instrText")):
+                itxt = (instr.text or "").strip()
+                if itxt and _is_suspicious_channel_text(itxt):
+                    stripped_traps.append(
+                        _make_trap(
+                            reason="docx_field_code",
+                            text=itxt[:500],
+                            location=f"{loc_prefix}:instrText",
+                            severity="high",
+                        )
+                    )
+
+            # Pre-identify paragraphs inside off-canvas drawings or hidden VML shapes
             off_canvas_ps: set[int] = set()
-            for draw in doc_root.iter(_w("drawing")):
+            for draw in root_el.iter(_w("drawing")):
                 if _is_off_canvas_drawing(draw):
                     for inner_p in draw.iter(_w("p")):
+                        off_canvas_ps.add(id(inner_p))
+            for vshape in root_el.iter(f"{{{_VML_NS}}}shape"):
+                if _is_hidden_vml_shape(vshape):
+                    for inner_p in vshape.iter(_w("p")):
                         off_canvas_ps.add(id(inner_p))
 
             # Build cell shading map for table cells
             cell_shd_map: Dict[int, Tuple[int, int, int]] = {}
-            for tc in doc_root.iter(_w("tc")):
+            for tc in root_el.iter(_w("tc")):
                 tcpr = tc.find(_w("tcPr"))
                 if tcpr is not None:
                     shd = tcpr.find(_w("shd"))
@@ -2506,8 +3060,8 @@ def sanitize_docx(
                             for inner_p in tc.iter(_w("p")):
                                 cell_shd_map[id(inner_p)] = rgb
 
-            for p_idx, p_el in enumerate(doc_root.iter(_w("p")), start=1):
-                loc = f"paragraph {p_idx}"
+            for p_idx, p_el in enumerate(root_el.iter(_w("p")), start=1):
+                loc = f"{loc_prefix}paragraph {p_idx}"
 
                 if id(p_el) in off_canvas_ps:
                     txt = "".join(t.text or "" for t in p_el.iter(_w("t"))).strip()
@@ -2522,7 +3076,6 @@ def sanitize_docx(
                         )
                     continue
 
-                # Deleted text <w:del> inside paragraph
                 for del_el in p_el.findall(_w("del")):
                     del_txt = "".join(dt.text or "" for dt in del_el.iter(_w("delText"))).strip()
                     if del_txt:
@@ -2556,7 +3109,6 @@ def sanitize_docx(
 
                 p_parts: List[str] = []
 
-                # Only inspect direct child runs and runs inside <w:hyperlink> / <w:ins> (NOT <w:del> or nested textbox)
                 def _iter_visible_runs(node: ET.Element) -> Iterable[ET.Element]:
                     for child in node:
                         if child.tag == _w("r"):
@@ -2646,7 +3198,31 @@ def sanitize_docx(
 
                 p_joined = "".join(p_parts).strip()
                 if p_joined:
-                    clean_paragraphs.append(p_joined)
+                    if collect_clean:
+                        clean_paragraphs.append(p_joined)
+                    elif _is_suspicious_channel_text(p_joined):
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="docx_aux_channel",
+                                text=p_joined[:500],
+                                location=loc,
+                                severity="high",
+                            )
+                        )
+
+        # 4. Walk word/document.xml + auxiliary parts (headers, footers, footnotes, endnotes)
+        if "word/document.xml" in names:
+            _scan_xml_part("word/document.xml", loc_prefix="", collect_clean=True)
+
+        aux_parts = sorted(
+            n for n in names
+            if re.fullmatch(r"word/(?:header\d+|footer\d+|footnotes|endnotes)\.xml", n)
+        )
+        for apart in aux_parts:
+            try:
+                _scan_xml_part(apart, loc_prefix=f"{os.path.basename(apart)}:", collect_clean=False)
+            except Exception:
+                pass
 
     return _finalize_report(
         clean_text="\n".join(clean_paragraphs),
@@ -2654,6 +3230,7 @@ def sanitize_docx(
         file_type="docx",
         engine_used="docx-xml",
         source_path=docx_path,
+        extra_warnings=extra_warnings,
         stats={"paragraphs_kept": len(clean_paragraphs)},
     )
 
@@ -2675,13 +3252,17 @@ def sanitize_pptx(
         )
 
     stripped_traps: List[TrapRecord] = []
+    extra_warnings: List[TrapRecord] = []
     clean_slides: List[str] = []
 
     with zipfile.ZipFile(pptx_path, "r") as zf:
         names = set(zf.namelist())
 
-        # 1. Metadata
+        # 1. Metadata & embedded media
         stripped_traps.extend(_audit_ooxml_core_props(zf, reason="pptx_metadata"))
+        m_traps, m_warns = _audit_ooxml_media(zf, "ppt/media/", "pptx")
+        stripped_traps.extend(m_traps)
+        extra_warnings.extend(m_warns)
 
         # 2. Determine slide size & slide order
         slide_cx, slide_cy = 9144000, 6858000
@@ -2768,6 +3349,20 @@ def sanitize_pptx(
                         slide_bg = bg_rgb
 
             slide_lines: List[str] = []
+            # Audit alt-text <p:cNvPr descr/title> on shapes & pictures
+            for cnv in root.iter(_p("cNvPr")):
+                for attr in ("descr", "title"):
+                    aval = (cnv.attrib.get(attr) or "").strip()
+                    if aval and _is_suspicious_channel_text(aval):
+                        stripped_traps.append(
+                            _make_trap(
+                                reason="pptx_alt_text",
+                                text=aval[:500],
+                                location=f"{loc}:cNvPr.{attr}",
+                                severity="high",
+                            )
+                        )
+
             for sp in root.iter(_p("sp")):
                 # Check off-slide coordinates
                 sp_pr = sp.find(_p("spPr"))
@@ -2878,7 +3473,7 @@ def sanitize_pptx(
             except Exception:
                 pass
 
-        # 5. Audit Comments (NEVER added to clean_text)
+        # 5. Audit Comments & SlideMasters / SlideLayouts
         for cpath in sorted(n for n in names if re.fullmatch(r"ppt/comments/comment\d+\.xml", n)):
             try:
                 c_root = ET.fromstring(zf.read(cpath))
@@ -2896,12 +3491,32 @@ def sanitize_pptx(
             except Exception:
                 pass
 
+        for ml_path in sorted(
+            n for n in names
+            if re.fullmatch(r"ppt/(?:slideMasters|slideLayouts)/[^/]+\.xml", n)
+        ):
+            try:
+                ml_root = ET.fromstring(zf.read(ml_path))
+                ml_txt = " ".join(t.text.strip() for t in ml_root.iter(_a("t")) if t.text and t.text.strip())
+                if ml_txt and _is_suspicious_channel_text(ml_txt):
+                    stripped_traps.append(
+                        _make_trap(
+                            reason="pptx_master_layout",
+                            text=ml_txt[:500],
+                            location=os.path.basename(ml_path),
+                            severity="high",
+                        )
+                    )
+            except Exception:
+                pass
+
     return _finalize_report(
         clean_text="\n\n".join(clean_slides),
         stripped_traps=stripped_traps,
         file_type="pptx",
         engine_used="pptx-xml",
         source_path=pptx_path,
+        extra_warnings=extra_warnings,
         stats={"slides_total": len(slide_paths), "slides_visible_with_text": len(clean_slides)},
     )
 
@@ -2948,24 +3563,95 @@ def sanitize_xlsx(
             except Exception:
                 pass
 
-        # 3. Styles (font size, font rgb, fill rgb)
+        # 3. Theme colors (for <color theme="0"/>) & Styles (font, fill, numFmt `;;;`)
+        theme_colors: List[Tuple[int, int, int]] = [
+            (255, 255, 255),  # 0: lt1 (white)
+            (0, 0, 0),        # 1: dk1 (black)
+            (231, 230, 230),  # 2: lt2
+            (68, 84, 106),    # 3: dk2
+            (68, 114, 196),   # 4: accent1
+            (237, 125, 49),   # 5: accent2
+            (165, 165, 165),  # 6: accent3
+            (255, 192, 0),    # 7: accent4
+            (91, 155, 213),   # 8: accent5
+            (112, 173, 71),   # 9: accent6
+        ]
+        if "xl/theme/theme1.xml" in names:
+            try:
+                th_root = ET.fromstring(zf.read("xl/theme/theme1.xml"))
+                clr_scheme = th_root.find(f".//{{{_A_NS}}}clrScheme")
+                if clr_scheme is not None:
+                    slot_names = ["lt1", "dk1", "lt2", "dk2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6"]
+                    for s_i, s_name in enumerate(slot_names):
+                        slot = clr_scheme.find(f"{{{_A_NS}}}{s_name}")
+                        if slot is not None:
+                            srgb = slot.find(f"{{{_A_NS}}}srgbClr")
+                            sysc = slot.find(f"{{{_A_NS}}}sysClr")
+                            val = None
+                            if srgb is not None:
+                                val = srgb.attrib.get("val")
+                            elif sysc is not None:
+                                val = sysc.attrib.get("lastClr")
+                            if val:
+                                parsed, _ = parse_css_color(val)
+                                if parsed is not None:
+                                    theme_colors[s_i] = parsed
+            except Exception:
+                pass
+
+        def _resolve_xlsx_color(col_el: Optional[ET.Element], default_rgb: Optional[Tuple[int, int, int]]) -> Optional[Tuple[int, int, int]]:
+            if col_el is None:
+                return default_rgb
+            if col_el.attrib.get("rgb"):
+                parsed, _ = parse_css_color(col_el.attrib["rgb"])
+                if parsed is not None:
+                    return parsed
+            if col_el.attrib.get("theme") is not None:
+                try:
+                    t_idx = int(col_el.attrib["theme"])
+                    if 0 <= t_idx < len(theme_colors):
+                        base = theme_colors[t_idx]
+                        tint_str = col_el.attrib.get("tint")
+                        if tint_str is not None:
+                            tint = float(tint_str)
+                            if tint > 0:
+                                return tuple(int(round(c + (255 - c) * tint)) for c in base)  # type: ignore[return-value]
+                            elif tint < 0:
+                                return tuple(int(round(c * (1.0 + tint))) for c in base)  # type: ignore[return-value]
+                        return base
+                except ValueError:
+                    pass
+            if col_el.attrib.get("indexed") is not None:
+                try:
+                    ix = int(col_el.attrib["indexed"])
+                    if ix in (9, 1):
+                        return (255, 255, 255)
+                    if ix in (8, 0, 64):
+                        return (0, 0, 0)
+                except ValueError:
+                    pass
+            return default_rgb
+
+        num_fmts: Dict[int, str] = {}
         fonts: List[Dict[str, Any]] = []
         fills: List[Optional[Tuple[int, int, int]]] = []
-        cell_xfs: List[Tuple[int, int]] = []
+        cell_xfs: List[Tuple[int, int, int]] = []  # (fontId, fillId, numFmtId)
         if "xl/styles.xml" in names:
             try:
                 st_root = ET.fromstring(zf.read("xl/styles.xml"))
+                nfmts_el = st_root.find(_s("numFmts"))
+                if nfmts_el is not None:
+                    for nf in nfmts_el.findall(_s("numFmt")):
+                        if nf.attrib.get("numFmtId", "").isdigit():
+                            num_fmts[int(nf.attrib["numFmtId"])] = nf.attrib.get("formatCode", "")
+
                 fonts_el = st_root.find(_s("fonts"))
                 if fonts_el is not None:
                     for f_el in fonts_el.findall(_s("font")):
                         sz_el = f_el.find(_s("sz"))
                         sz = float(sz_el.attrib.get("val", "11")) if sz_el is not None else 11.0
                         col_el = f_el.find(_s("color"))
-                        rgb = (0, 0, 0)
-                        if col_el is not None and col_el.attrib.get("rgb"):
-                            parsed, _ = parse_css_color(col_el.attrib["rgb"])
-                            if parsed is not None:
-                                rgb = parsed
+                        rgb = _resolve_xlsx_color(col_el, (0, 0, 0)) or (0, 0, 0)
                         fonts.append({"sz": sz, "rgb": rgb})
 
                 fills_el = st_root.find(_s("fills"))
@@ -2975,15 +3661,18 @@ def sanitize_xlsx(
                         fill_rgb = None
                         if pf is not None and pf.attrib.get("patternType", "none") != "none":
                             fg_c = pf.find(_s("fgColor"))
-                            if fg_c is not None and fg_c.attrib.get("rgb"):
-                                fill_rgb, _ = parse_css_color(fg_c.attrib["rgb"])
+                            fill_rgb = _resolve_xlsx_color(fg_c, None)
                         fills.append(fill_rgb)
 
                 xfs_el = st_root.find(_s("cellXfs"))
                 if xfs_el is not None:
                     for xf in xfs_el.findall(_s("xf")):
                         cell_xfs.append(
-                            (int(xf.attrib.get("fontId", "0")), int(xf.attrib.get("fillId", "0")))
+                            (
+                                int(xf.attrib.get("fontId", "0")),
+                                int(xf.attrib.get("fillId", "0")),
+                                int(xf.attrib.get("numFmtId", "0")),
+                            )
                         )
             except Exception:
                 pass
@@ -3016,6 +3705,20 @@ def sanitize_xlsx(
                         sh_path = rels_map.get(rid, "")
                         if sh_path in names:
                             sheets_meta.append((sh_name, sh_state, sh_path))
+                # Audit <definedNames>
+                def_names = wb_root.find(_s("definedNames"))
+                if def_names is not None:
+                    for dn in def_names.findall(_s("definedName")):
+                        dn_text = f"{dn.attrib.get('name', '')}: {dn.text or ''}".strip()
+                        if dn_text and _is_suspicious_channel_text(dn_text):
+                            stripped_traps.append(
+                                _make_trap(
+                                    reason="xlsx_formula_or_name",
+                                    text=dn_text[:500],
+                                    location="workbook.definedName",
+                                    severity="high",
+                                )
+                            )
             except Exception:
                 pass
 
@@ -3077,10 +3780,20 @@ def sanitize_xlsx(
                     row_vals: List[str] = []
 
                     for c_el in row_el.findall(_s("c")):
+                        cell_ref = c_el.attrib.get("r", "")
+                        f_el = c_el.find(_s("f"))
+                        if f_el is not None and f_el.text and _is_suspicious_channel_text(f_el.text):
+                            stripped_traps.append(
+                                _make_trap(
+                                    reason="xlsx_formula_or_name",
+                                    text=f_el.text.strip()[:500],
+                                    location=f"sheet '{sh_name}'!{cell_ref}:formula",
+                                    severity="high",
+                                )
+                            )
                         val = _cell_value(c_el).strip()
                         if not val:
                             continue
-                        cell_ref = c_el.attrib.get("r", "")
                         col_letters = "".join(ch for ch in cell_ref if ch.isalpha())
                         col_idx = _col_letters_to_index(col_letters) if col_letters else -1
                         loc = f"sheet '{sh_name}'!{cell_ref}"
@@ -3093,13 +3806,17 @@ def sanitize_xlsx(
                             if s_attr and s_attr.isdigit():
                                 xf_idx = int(s_attr)
                                 if 0 <= xf_idx < len(cell_xfs):
-                                    f_id, fl_id = cell_xfs[xf_idx]
-                                    font = fonts[f_id] if 0 <= f_id < len(fonts) else {"sz": 11.0, "rgb": (0, 0, 0)}
-                                    bg_rgb = fills[fl_id] if (0 <= fl_id < len(fills) and fills[fl_id] is not None) else (255, 255, 255)
-                                    if font["sz"] < min_font_size:
-                                        reason = "xlsx_micro_font"
-                                    elif contrast_ratio(font["rgb"], bg_rgb) < contrast_threshold:
-                                        reason = "xlsx_hidden_text"
+                                    f_id, fl_id, nfmt_id = cell_xfs[xf_idx]
+                                    fmt_code = num_fmts.get(nfmt_id, "")
+                                    if fmt_code and re.fullmatch(r"\s*(?:;+\s*)+", fmt_code):
+                                        reason = "xlsx_hidden_format"
+                                    else:
+                                        font = fonts[f_id] if 0 <= f_id < len(fonts) else {"sz": 11.0, "rgb": (0, 0, 0)}
+                                        bg_rgb = fills[fl_id] if (0 <= fl_id < len(fills) and fills[fl_id] is not None) else (255, 255, 255)
+                                        if font["sz"] < min_font_size:
+                                            reason = "xlsx_micro_font"
+                                        elif contrast_ratio(font["rgb"], bg_rgb) < contrast_threshold:
+                                            reason = "xlsx_hidden_text"
 
                         if reason:
                             stripped_traps.append(
@@ -3170,11 +3887,18 @@ class _SanitizingHTMLParser(HTMLParser):
     _VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
     _BLOCK_TAGS = {"p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6", "br", "section", "article", "header", "footer"}
 
-    def __init__(self, contrast_threshold: float = 1.8, min_font_size: float = 4.0, min_opacity: float = 0.15):
+    def __init__(
+        self,
+        contrast_threshold: float = 1.8,
+        min_font_size: float = 4.0,
+        min_opacity: float = 0.15,
+        css_rules: Optional[Dict[str, Dict[str, str]]] = None,
+    ):
         super().__init__(convert_charrefs=True)
         self.contrast_threshold = contrast_threshold
         self.min_font_size = min_font_size
         self.min_opacity = min_opacity
+        self.css_rules = css_rules or {}
         self.clean_chunks: List[str] = []
         self.traps: List[TrapRecord] = []
         # stack entries: (tag, hidden_reason_or_None, skip_tag_bool, bg_rgb)
@@ -3199,11 +3923,8 @@ class _SanitizingHTMLParser(HTMLParser):
         bg_rgb = parent_bg
         if "hidden" in attr_dict:
             return "html_hidden_element", bg_rgb
-        if (attr_dict.get("aria-hidden") or "").lower() == "true" and tag in ("span", "div", "p"):
-            # Only flag aria-hidden when combined with hiding styles or suspicious content (handled via style)
-            pass
 
-        style = _parse_inline_style(attr_dict.get("style") or "")
+        style = _resolve_css_for_element(tag, attr_dict, self.css_rules)
         bg_str = style.get("background-color") or style.get("background")
         if bg_str:
             rgb, a = parse_css_color(bg_str.split()[0])
@@ -3214,6 +3935,28 @@ class _SanitizingHTMLParser(HTMLParser):
             return "html_hidden_element", bg_rgb
         if style.get("visibility", "").lower().startswith("hidden"):
             return "html_hidden_element", bg_rgb
+
+        transform = style.get("transform", "").lower()
+        if re.search(r"scale[xy]?\(\s*0(?:\.0+)?\s*(?:,|\))", transform):
+            return "html_hidden_element", bg_rgb
+
+        clip_path = style.get("clip-path", "").lower().replace(" ", "")
+        if "inset(100%" in clip_path or "circle(0" in clip_path or "polygon(0" in clip_path:
+            return "html_hidden_element", bg_rgb
+
+        flt = style.get("filter", "").lower().replace(" ", "")
+        if "opacity(0)" in flt or "opacity(0%)" in flt:
+            return "html_hidden_element", bg_rgb
+
+        w_fill = style.get("-webkit-text-fill-color", "").lower().strip()
+        if w_fill == "transparent":
+            return "html_hidden_element", bg_rgb
+
+        if style.get("overflow", "").lower().startswith("hidden"):
+            for dim_k in ("height", "max-height", "width", "max-width"):
+                dim_v = style.get(dim_k, "")
+                if re.fullmatch(r"\s*0(?:px|pt|em|rem|%)?\s*", dim_v or ""):
+                    return "html_hidden_element", bg_rgb
 
         op_str = style.get("opacity")
         if op_str is not None:
@@ -3261,6 +4004,29 @@ class _SanitizingHTMLParser(HTMLParser):
                         location=f"<{tl} {attr_name}>",
                         severity="high",
                         details={"tag": tl, "attribute": attr_name},
+                    )
+                )
+
+        if tl == "meta":
+            mcontent = (attr_dict.get("content") or "").strip()
+            if mcontent and _is_suspicious_channel_text(mcontent):
+                self.traps.append(
+                    _make_trap(
+                        reason="html_suspicious_attr",
+                        text=mcontent[:500],
+                        location="<meta content>",
+                        severity="high",
+                    )
+                )
+        elif tl == "input" and (attr_dict.get("type") or "").lower() == "hidden":
+            hval = (attr_dict.get("value") or "").strip()
+            if hval and _is_suspicious_channel_text(hval):
+                self.traps.append(
+                    _make_trap(
+                        reason="html_hidden_element",
+                        text=hval[:500],
+                        location="<input type='hidden'>",
+                        severity="high",
                     )
                 )
 
@@ -3350,7 +4116,10 @@ def sanitize_markup(
         markup_type = "html" if ext in (".html", ".htm", ".xhtml") else "markdown"
 
     if markup_type == "html":
-        parser = _SanitizingHTMLParser()
+        css_rules: Dict[str, Dict[str, str]] = {}
+        for st_m in re.finditer(r"<style\b[^>]*>(.*?)</style>", raw, re.IGNORECASE | re.DOTALL):
+            css_rules.update(_parse_css_rules(st_m.group(1)))
+        parser = _SanitizingHTMLParser(css_rules=css_rules)
         parser.feed(raw)
         parser.close()
         clean = re.sub(r"\n{3,}", "\n\n", "".join(parser.clean_chunks))
@@ -3426,6 +4195,50 @@ def sanitize_markup(
         return ""
 
     text = hidden_html_pat.sub(_strip_inline_html, text)
+
+    # 4. Strip unused or suspicious Markdown reference-link definitions: [id]: url "title"
+    def _strip_ref_link(m: re.Match[str]) -> str:
+        label = (m.group(1) or "").strip()
+        target_and_title = (m.group(2) or "").strip()
+        # Check if label is referenced anywhere else in document body
+        is_referenced = bool(
+            label
+            and re.search(rf"\[[^\]]*\]\[{re.escape(label)}\]|\[{re.escape(label)}\]\[\]", text[:m.start()] + text[m.end():], re.IGNORECASE)
+        )
+        if not is_referenced or _is_suspicious_channel_text(target_and_title):
+            stripped_traps.append(
+                _make_trap(
+                    reason="markdown_hidden_ref",
+                    text=target_and_title[:500] or label,
+                    location=f"markdown:ref[{label}]",
+                    severity="high" if _is_suspicious_channel_text(target_and_title) else "medium",
+                )
+            )
+            return ""
+        return m.group(0)
+
+    text = re.sub(
+        r"^[ \t]*\[([^\]]+)\]:[ \t]+(.+?)[ \t]*$",
+        _strip_ref_link,
+        text,
+        flags=re.MULTILINE,
+    )
+
+    # 5. Audit suspicious Markdown image alt / title texts ![alt](url "title")
+    for img_m in re.finditer(r"!\[([^\]]*)\]\(([^)\s]+)(?:\s+[\"']([^\"']*)[\"'])?\)", text):
+        alt_txt = (img_m.group(1) or "").strip()
+        title_txt = (img_m.group(3) or "").strip()
+        for kind, val in (("alt", alt_txt), ("title", title_txt)):
+            if val and _is_suspicious_channel_text(val):
+                stripped_traps.append(
+                    _make_trap(
+                        reason="markdown_suspicious_image_attr",
+                        text=val[:500],
+                        location=f"markdown:img.{kind}",
+                        severity="high",
+                    )
+                )
+
     text = re.sub(r"\n{3,}", "\n\n", text)
 
     return _finalize_report(
@@ -3458,15 +4271,18 @@ def sanitize_code(
     stripped_traps: List[TrapRecord] = list(uni_traps)
     extra_warnings: List[TrapRecord] = []
 
-    # Step 2: Inspect single-line & multi-line comments for AI prompt-injection traps
-    lines = cleaned.splitlines()
-    out_lines: List[str] = []
-    in_block_comment = False
+    # Step 1.5: Strip malicious Python triple-quoted docstrings ("""...""" or '''...''')
+    is_python_hint = (
+        (source_path and source_path.lower().endswith(".py"))
+        or bool(re.search(r"^\s*(?:def|class)\s+\w+", cleaned, re.MULTILINE))
+    )
 
     def _is_malicious_code_comment(comment_body: str) -> bool:
         if not comment_body.strip():
             return False
         if detect_semantic_traps(comment_body, location="code_comment"):
+            return True
+        if _is_suspicious_channel_text(comment_body):
             return True
         if re.search(
             r"\b(?:note\s+for\s+ai|for\s+ai|untuk\s+ai|ignore\s+previous|abaikan\s+instruksi|"
@@ -3476,6 +4292,37 @@ def sanitize_code(
         ):
             return True
         return False
+
+    if is_python_hint:
+        def _strip_py_docstring(m: re.Match[str]) -> str:
+            body = m.group(2)
+            if _is_malicious_code_comment(body):
+                line_no = cleaned[: m.start()].count("\n") + 1
+                stripped_traps.append(
+                    _make_trap(
+                        reason="code_prompt_injection",
+                        text=body.strip()[:500],
+                        location=f"docstring:line {line_no}",
+                        severity="high",
+                    )
+                )
+                extra_warnings.extend(
+                    detect_semantic_traps(body, location=f"code:line {line_no}")
+                )
+                return ""
+            return m.group(0)
+
+        cleaned = re.sub(
+            r"(\"\"\"|''')(.*?)(\1)",
+            _strip_py_docstring,
+            cleaned,
+            flags=re.DOTALL,
+        )
+
+    # Step 2: Inspect single-line & multi-line comments for AI prompt-injection traps
+    lines = cleaned.splitlines()
+    out_lines: List[str] = []
+    in_block_comment = False
 
     block_buf: List[Tuple[int, str]] = []
     for lineno, line in enumerate(lines, start=1):
@@ -3660,6 +4507,1147 @@ def sanitize_ipynb(ipynb_path: str) -> SanitizationReport:
 
 
 # ---------------------------------------------------------------------------
+# Tier 2 Parsers: RTF, OpenDocument (ODT/ODP/ODS), ZIP & Agent-Rule Audit
+# ---------------------------------------------------------------------------
+
+def _is_suspicious_or_semantic(text: str) -> bool:
+    """Return True if auxiliary channel text looks suspicious, semantic-trapped, or has directives."""
+    if not text or not text.strip():
+        return False
+    if _is_suspicious_channel_text(text):
+        return True
+    if detect_semantic_traps(text):
+        return True
+    if extract_forbidden_identifiers(text):
+        return True
+    return False
+
+
+def _audit_archive_images(
+    zf: "zipfile.ZipFile",
+    prefix: str,
+    location_prefix: str,
+    stripped_traps: List[TrapRecord],
+) -> None:
+    """Inspect image metadata chunks inside an office/ODF ZIP archive without disk writes."""
+    img_exts = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".svg")
+    for name in zf.namelist():
+        low = name.lower()
+        if prefix and not low.startswith(prefix.lower()):
+            continue
+        if not low.endswith(img_exts):
+            continue
+        try:
+            raw_bytes = zf.read(name)
+        except Exception:
+            continue
+        if len(raw_bytes) > 15_000_000:
+            continue
+        if low.endswith(".svg"):
+            try:
+                svg_txt = raw_bytes.decode("utf-8", errors="ignore")
+                if _is_suspicious_or_semantic(svg_txt):
+                    stripped_traps.append(
+                        _make_trap(
+                            f"{location_prefix}_media_metadata",
+                            svg_txt.strip()[:200],
+                            f"{location_prefix}:{name}",
+                            "high",
+                        )
+                    )
+            except Exception:
+                pass
+            continue
+        # Inspect PNG text chunks & Pillow info/EXIF/COM
+        if PILImage is not None:
+            import io
+            try:
+                with PILImage.open(io.BytesIO(raw_bytes)) as im:
+                    for k, v in (im.info or {}).items():
+                        if isinstance(v, (str, bytes)):
+                            val = v.decode("utf-8", errors="ignore") if isinstance(v, bytes) else v
+                            if _is_suspicious_or_semantic(val):
+                                stripped_traps.append(
+                                    _make_trap(
+                                        f"{location_prefix}_media_metadata",
+                                        f"[{k}] {val.strip()[:200]}",
+                                        f"{location_prefix}:{name}",
+                                        "high",
+                                    )
+                                )
+                    try:
+                        exif = im.getexif()
+                        for tag_id, val in (exif.items() if exif else ()):
+                            sval = str(val)
+                            if _is_suspicious_or_semantic(sval):
+                                stripped_traps.append(
+                                    _make_trap(
+                                        f"{location_prefix}_media_metadata",
+                                        f"[EXIF:{tag_id}] {sval[:200]}",
+                                        f"{location_prefix}:{name}",
+                                        "high",
+                                    )
+                                )
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+
+_RTF_SKIP_DESTS = {
+    "fonttbl", "colortbl", "stylesheet", "pict", "object", "objdata",
+    "blipuid", "listtable", "listoverridetable", "revtbl", "rsidtbl",
+    "latentstyles", "datastore", "themedata", "colorschememapping",
+    "pgdsctbl", "panose", "xmlnstbl", "mmathPr", "generator", "shppict",
+    "nonshppict", "bkmkstart", "bkmkend", "xe", "tc",
+}
+_RTF_INFO_DESTS = {
+    "info", "title", "subject", "author", "keywords", "doccomm",
+    "company", "category", "comment", "operator", "manager",
+}
+_RTF_ANNOT_DESTS = {"annotation", "atnauthor", "atnid", "atnref", "atntime", "atnicn"}
+_RTF_HEADER_DESTS = {"header", "headerl", "headerr", "headerf", "footer", "footerl", "footerr", "footerf"}
+
+
+def _parse_rtf_colortbl(rtf_raw: str) -> List[Optional[Tuple[int, int, int]]]:
+    """Extract RTF \\colortbl entries as RGB tuples (index 0 may be None/auto)."""
+    m = re.search(r"\{\\colortbl\b", rtf_raw)
+    if not m:
+        return []
+    start = m.start()
+    depth = 0
+    end = start
+    n = len(rtf_raw)
+    for idx in range(start, n):
+        ch = rtf_raw[idx]
+        if ch == "{" and (idx == 0 or rtf_raw[idx - 1] != "\\"):
+            depth += 1
+        elif ch == "}" and (idx == 0 or rtf_raw[idx - 1] != "\\"):
+            depth -= 1
+            if depth == 0:
+                end = idx + 1
+                break
+    tbl = rtf_raw[start:end]
+    # Remove outer '{\colortbl' and trailing '}'
+    inner = re.sub(r"^\{\\colortbl\b\s*", "", tbl)
+    if inner.endswith("}"):
+        inner = inner[:-1]
+    colors: List[Optional[Tuple[int, int, int]]] = []
+    for entry in inner.split(";")[:-1]:
+        r_m = re.search(r"\\red(\d+)", entry)
+        g_m = re.search(r"\\green(\d+)", entry)
+        b_m = re.search(r"\\blue(\d+)", entry)
+        if r_m and g_m and b_m:
+            colors.append((
+                max(0, min(255, int(r_m.group(1)))),
+                max(0, min(255, int(g_m.group(1)))),
+                max(0, min(255, int(b_m.group(1)))),
+            ))
+        else:
+            colors.append(None)
+    return colors
+
+
+def sanitize_rtf(rtf_path: str) -> SanitizationReport:
+    """
+    Layer 3 (Tier 2): Sanitize RTF files by parsing RTF groups/control words
+    and stripping \\v hidden text, white/low-contrast colors, micro-font (<4pt),
+    \\deleted revisions, and auditing \\info metadata, \\annotation, \\fldinst,
+    headers/footers, and ignorable \\* destinations.
+    """
+    try:
+        with open(rtf_path, "rb") as f:
+            raw_bytes = f.read()
+    except Exception as exc:
+        return SanitizationReport(
+            file_type="rtf",
+            engine_used="rtf_stdlib",
+            source_path=rtf_path,
+            risk_level="none",
+            stats={"error": str(exc)},
+        )
+
+    rtf_raw = raw_bytes.decode("latin-1", errors="ignore")
+    cpg_m = re.search(r"\\ansicpg(\d+)", rtf_raw[:1024])
+    codepage = f"cp{cpg_m.group(1)}" if cpg_m else "cp1252"
+    try:
+        b"a".decode(codepage)
+    except Exception:
+        codepage = "cp1252"
+
+    colortbl = _parse_rtf_colortbl(rtf_raw)
+
+    def _state_reason(st: Dict[str, Any]) -> Optional[str]:
+        dest = st["dest"]
+        if dest != "body":
+            return f"aux:{dest}"
+        if st["hidden"]:
+            return "rtf_hidden_text"
+        if st["deleted"]:
+            return "rtf_tracked_deletion"
+        if 0 < st["fs"] < 4.0:
+            return "rtf_micro_font"
+        cf_idx = st["cf"]
+        cb_idx = st["cb"]
+        fg = colortbl[cf_idx] if 0 <= cf_idx < len(colortbl) else None
+        bg = colortbl[cb_idx] if 0 <= cb_idx < len(colortbl) else (255, 255, 255)
+        if fg is not None and bg is not None and contrast_ratio(fg, bg) < 1.8:
+            return "rtf_low_contrast"
+        return None
+
+    vis_parts: List[str] = []
+    trap_buckets: Dict[str, List[str]] = {}
+    aux_buckets: Dict[str, List[str]] = {}
+
+    cur_buf: List[str] = []
+    hex_buf = bytearray()
+    skip_chars = 0
+    ignorable_star = False
+
+    stack: List[Dict[str, Any]] = [{
+        "uc": 1,
+        "hidden": False,
+        "deleted": False,
+        "fs": 12.0,
+        "cf": -1,
+        "cb": -1,
+        "dest": "body",
+        "skip_group": False,
+    }]
+
+    def _flush_hex() -> None:
+        nonlocal hex_buf
+        if hex_buf:
+            cur_buf.append(bytes(hex_buf).decode(codepage, errors="replace"))
+            hex_buf.clear()
+
+    def _flush_run() -> None:
+        _flush_hex()
+        if not cur_buf:
+            return
+        text = "".join(cur_buf)
+        cur_buf.clear()
+        if not text:
+            return
+        top = stack[-1]
+        if top["skip_group"]:
+            return
+        reason = _state_reason(top)
+        if reason is None:
+            vis_parts.append(text)
+        elif reason.startswith("aux:"):
+            dest = reason[4:]
+            aux_buckets.setdefault(dest, []).append(text)
+        else:
+            trap_buckets.setdefault(reason, []).append(text)
+
+    i = 0
+    n = len(rtf_raw)
+    while i < n:
+        ch = rtf_raw[i]
+        if ch == "{":
+            _flush_run()
+            stack.append(dict(stack[-1]))
+            ignorable_star = False
+            skip_chars = 0
+            i += 1
+        elif ch == "}":
+            _flush_run()
+            if len(stack) > 1:
+                stack.pop()
+            ignorable_star = False
+            skip_chars = 0
+            i += 1
+        elif ch == "\\":
+            if i + 1 >= n:
+                break
+            nxt = rtf_raw[i + 1]
+            # Escaped literal chars
+            if nxt in ("\\", "{", "}"):
+                _flush_hex()
+                if skip_chars > 0:
+                    skip_chars -= 1
+                elif not stack[-1]["skip_group"]:
+                    cur_buf.append(nxt)
+                i += 2
+            elif nxt == "*":
+                _flush_hex()
+                ignorable_star = True
+                i += 2
+            elif nxt == "'":
+                # Hex byte \'hh
+                if i + 3 < n:
+                    hx = rtf_raw[i + 2 : i + 4]
+                    try:
+                        bval = int(hx, 16)
+                        if skip_chars > 0:
+                            skip_chars -= 1
+                        elif not stack[-1]["skip_group"]:
+                            hex_buf.append(bval)
+                        i += 4
+                        continue
+                    except ValueError:
+                        pass
+                i += 2
+            elif nxt == "~":
+                _flush_hex()
+                if skip_chars > 0:
+                    skip_chars -= 1
+                elif not stack[-1]["skip_group"]:
+                    cur_buf.append(" ")
+                i += 2
+            elif nxt == "_":
+                _flush_hex()
+                if skip_chars > 0:
+                    skip_chars -= 1
+                elif not stack[-1]["skip_group"]:
+                    cur_buf.append("-")
+                i += 2
+            elif nxt in ("-", "\r", "\n"):
+                _flush_hex()
+                if nxt in ("\r", "\n") and not stack[-1]["skip_group"]:
+                    cur_buf.append("\n")
+                i += 2
+            elif nxt.isalpha():
+                _flush_hex()
+                j = i + 1
+                while j < n and rtf_raw[j].isalpha():
+                    j += 1
+                word = rtf_raw[i + 1 : j]
+                # Optional numeric parameter
+                k = j
+                if k < n and (rtf_raw[k] == "-" or rtf_raw[k].isdigit()):
+                    k += 1
+                    while k < n and rtf_raw[k].isdigit():
+                        k += 1
+                    param_str = rtf_raw[j:k]
+                    try:
+                        param: Optional[int] = int(param_str)
+                    except ValueError:
+                        param = None
+                else:
+                    param = None
+                # Single optional delimiter space is consumed by RTF spec
+                if k < n and rtf_raw[k] == " ":
+                    k += 1
+                i = k
+
+                top = stack[-1]
+                # Destination words
+                if word in _RTF_SKIP_DESTS:
+                    _flush_run()
+                    top["skip_group"] = True
+                elif word in _RTF_INFO_DESTS:
+                    _flush_run()
+                    top["dest"] = "info"
+                elif word in _RTF_ANNOT_DESTS:
+                    _flush_run()
+                    top["dest"] = "annotation"
+                elif word == "fldinst":
+                    _flush_run()
+                    top["dest"] = "fldinst"
+                elif word in _RTF_HEADER_DESTS:
+                    _flush_run()
+                    top["dest"] = "header_footer"
+                elif ignorable_star and top["dest"] == "body" and word not in ("rtf",):
+                    _flush_run()
+                    top["dest"] = "ignorable"
+                elif word == "v":
+                    _flush_run()
+                    top["hidden"] = False if param == 0 else True
+                elif word == "deleted":
+                    _flush_run()
+                    top["deleted"] = False if param == 0 else True
+                elif word == "plain":
+                    _flush_run()
+                    top["hidden"] = False
+                    top["deleted"] = False
+                    top["fs"] = 12.0
+                    top["cf"] = -1
+                    top["cb"] = -1
+                elif word == "fs" and param is not None and param > 0:
+                    _flush_run()
+                    top["fs"] = param / 2.0
+                elif word == "cf" and param is not None:
+                    _flush_run()
+                    top["cf"] = param
+                elif word in ("cb", "highlight") and param is not None:
+                    _flush_run()
+                    top["cb"] = param
+                elif word == "uc" and param is not None and param >= 0:
+                    top["uc"] = param
+                elif word == "u" and param is not None:
+                    if not top["skip_group"]:
+                        code = param if param >= 0 else param + 65536
+                        if 0 <= code <= 0x10FFFF:
+                            cur_buf.append(chr(code))
+                    skip_chars = top["uc"]
+                elif word in ("par", "line", "row"):
+                    if not top["skip_group"]:
+                        cur_buf.append("\n")
+                elif word in ("tab", "cell"):
+                    if not top["skip_group"]:
+                        cur_buf.append("\t")
+                ignorable_star = False
+            else:
+                i += 2
+        elif ch in ("\r", "\n"):
+            i += 1
+        else:
+            _flush_hex()
+            if skip_chars > 0:
+                skip_chars -= 1
+            elif not stack[-1]["skip_group"]:
+                cur_buf.append(ch)
+            i += 1
+
+    _flush_run()
+
+    stripped_traps: List[TrapRecord] = []
+    for reason, parts in trap_buckets.items():
+        joined = "".join(parts).strip()
+        if joined:
+            stripped_traps.append(_make_trap(reason, joined, "rtf:body", "high"))
+
+    dest_reason_map = {
+        "info": "rtf_metadata",
+        "annotation": "rtf_annotation",
+        "fldinst": "rtf_field_code",
+        "header_footer": "rtf_header_footer",
+        "ignorable": "rtf_hidden_group",
+    }
+    for dest, parts in aux_buckets.items():
+        joined = "".join(parts).strip()
+        if not joined:
+            continue
+        if dest in ("annotation", "ignorable") or _is_suspicious_or_semantic(joined):
+            stripped_traps.append(
+                _make_trap(
+                    dest_reason_map.get(dest, "rtf_hidden_group"),
+                    joined[:300],
+                    f"rtf:{dest}",
+                    "high",
+                )
+            )
+
+    clean_text = "\n".join(ln.rstrip() for ln in "".join(vis_parts).splitlines()).strip()
+    return _finalize_report(
+        clean_text=clean_text,
+        stripped_traps=stripped_traps,
+        file_type="rtf",
+        engine_used="rtf_stdlib",
+        source_path=rtf_path,
+    )
+
+
+def _odf_local(tag: str) -> str:
+    return tag.split("}", 1)[-1] if "}" in tag else tag
+
+
+def _odf_attr(elem: Any, names: Tuple[str, ...]) -> Optional[str]:
+    """Lookup ODF attribute by exact local name(s) across namespaces."""
+    for k, v in elem.attrib.items():
+        loc = _odf_local(k)
+        if loc in names:
+            return v
+    return None
+
+
+def _parse_odf_coord_val(val: Optional[str]) -> Optional[float]:
+    if not val:
+        return None
+    m = re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*(cm|mm|in|pt|px)?\s*$", val, re.IGNORECASE)
+    if not m:
+        return None
+    num = float(m.group(1))
+    unit = (m.group(2) or "pt").lower()
+    factor = {"pt": 1.0, "px": 0.75, "in": 72.0, "cm": 28.3465, "mm": 2.83465}.get(unit, 1.0)
+    return num * factor
+
+
+def _parse_odf_opacity(val: Optional[str]) -> Optional[float]:
+    if not val:
+        return None
+    s = val.strip()
+    if s.endswith("%"):
+        try:
+            return max(0.0, min(1.0, float(s[:-1]) / 100.0))
+        except ValueError:
+            return None
+    try:
+        v = float(s)
+        return v / 100.0 if v > 1.0 else max(0.0, min(1.0, v))
+    except ValueError:
+        return None
+
+
+def sanitize_odf(odf_path: str) -> SanitizationReport:
+    """
+    Layer 3 (Tier 2): Sanitize OpenDocument files (.odt, .odp, .ods) using stdlib
+    zipfile + ElementTree. Strips text:display='none', white/low-contrast text,
+    micro-font (<4pt), low opacity, hidden sections/slides/sheets/rows/columns,
+    off-page frames, tracked deletions; audits annotations, presenter notes,
+    meta.xml metadata, and Pictures/* image metadata.
+    """
+    import xml.etree.ElementTree as ET
+
+    ext = os.path.splitext(odf_path)[1].lower().lstrip(".") or "odf"
+    try:
+        zf = zipfile.ZipFile(odf_path, "r")
+    except Exception as exc:
+        return SanitizationReport(
+            file_type=ext,
+            engine_used="odf_stdlib",
+            source_path=odf_path,
+            risk_level="none",
+            stats={"error": str(exc)},
+        )
+
+    styles: Dict[str, Dict[str, Any]] = {}
+    stripped_traps: List[TrapRecord] = []
+
+    def _collect_styles(xml_bytes: bytes) -> None:
+        try:
+            root = ET.fromstring(xml_bytes)
+        except Exception:
+            return
+        for st_el in root.iter():
+            if _odf_local(st_el.tag) != "style":
+                continue
+            name = _odf_attr(st_el, ("name",))
+            if not name:
+                continue
+            info: Dict[str, Any] = {
+                "parent": _odf_attr(st_el, ("parent-style-name",)),
+                "display": None,
+                "color": None,
+                "bg_color": None,
+                "font_size_pt": None,
+                "opacity": None,
+                "table_display": None,
+            }
+            for child in st_el:
+                loc = _odf_local(child.tag)
+                if loc == "text-properties":
+                    disp = _odf_attr(child, ("display",))
+                    if disp is not None:
+                        info["display"] = disp.strip().lower()
+                    col = _odf_attr(child, ("color",))
+                    if col:
+                        rgb, _ = parse_css_color(col)
+                        if rgb is not None:
+                            info["color"] = rgb
+                    bg = _odf_attr(child, ("background-color",))
+                    if bg and bg.strip().lower() != "transparent":
+                        rgb, _ = parse_css_color(bg)
+                        if rgb is not None:
+                            info["bg_color"] = rgb
+                    fs = _odf_attr(child, ("font-size", "font-size-asian", "font-size-complex"))
+                    if fs:
+                        pt = _parse_css_font_size_pt(fs)
+                        if pt is not None:
+                            info["font_size_pt"] = pt
+                elif loc == "paragraph-properties":
+                    bg = _odf_attr(child, ("background-color",))
+                    if bg and bg.strip().lower() != "transparent":
+                        rgb, _ = parse_css_color(bg)
+                        if rgb is not None:
+                            info["bg_color"] = rgb
+                elif loc == "graphic-properties":
+                    op = _odf_attr(child, ("opacity",))
+                    if op:
+                        op_v = _parse_odf_opacity(op)
+                        if op_v is not None:
+                            info["opacity"] = op_v
+                    fill_col = _odf_attr(child, ("fill-color",))
+                    if fill_col and info["bg_color"] is None:
+                        rgb, _ = parse_css_color(fill_col)
+                        if rgb is not None:
+                            info["bg_color"] = rgb
+                elif loc == "table-properties":
+                    td = _odf_attr(child, ("display",))
+                    if td is not None:
+                        info["table_display"] = td.strip().lower() != "false"
+            styles[name] = info
+
+    def _resolve_style(name: Optional[str]) -> Dict[str, Any]:
+        resolved: Dict[str, Any] = {
+            "display": None,
+            "color": None,
+            "bg_color": None,
+            "font_size_pt": None,
+            "opacity": None,
+            "table_display": None,
+        }
+        if not name:
+            return resolved
+        chain: List[Dict[str, Any]] = []
+        seen: set = set()
+        cur: Optional[str] = name
+        while cur and cur not in seen and cur in styles:
+            seen.add(cur)
+            chain.append(styles[cur])
+            cur = styles[cur].get("parent")
+        for item in reversed(chain):
+            for k in resolved:
+                if item.get(k) is not None:
+                    resolved[k] = item[k]
+        return resolved
+
+    def _merge_style(base: Dict[str, Any], name: Optional[str]) -> Dict[str, Any]:
+        out = dict(base)
+        if name:
+            st = _resolve_style(name)
+            for k, v in st.items():
+                if v is not None:
+                    out[k] = v
+        return out
+
+    def _collect_plain_text(el: Any, exclude_annotations: bool = True) -> str:
+        loc = _odf_local(el.tag)
+        if exclude_annotations and loc in ("annotation", "tracked-changes", "deletion"):
+            return ""
+        parts: List[str] = []
+        if el.text:
+            parts.append(el.text)
+        for ch in el:
+            parts.append(_collect_plain_text(ch, exclude_annotations=exclude_annotations))
+            if ch.tail:
+                parts.append(ch.tail)
+        return "".join(parts)
+
+    with zf:
+        for xml_name in ("styles.xml", "content.xml"):
+            if xml_name in zf.namelist():
+                try:
+                    _collect_styles(zf.read(xml_name))
+                except Exception:
+                    pass
+
+        visible_parts: List[str] = []
+        slide_count = 0
+        sheet_count = 0
+
+        if "content.xml" in zf.namelist():
+            try:
+                content_root = ET.fromstring(zf.read("content.xml"))
+            except Exception:
+                content_root = None
+
+            def _style_defect(eff: Dict[str, Any]) -> Optional[str]:
+                if eff.get("display") == "none":
+                    return "odf_hidden_text"
+                if eff.get("opacity") is not None and eff["opacity"] < 0.15:
+                    return "odf_transparent_text"
+                fs_pt = eff.get("font_size_pt")
+                if fs_pt is not None and 0 < fs_pt < 4.0:
+                    return "odf_micro_font"
+                fg = eff.get("color")
+                if fg is not None:
+                    bg = eff.get("bg_color") or (255, 255, 255)
+                    if contrast_ratio(fg, bg) < 1.8:
+                        return "odf_low_contrast"
+                return None
+
+            def _walk_table(tbl_el: Any, inherited: Dict[str, Any]) -> None:
+                nonlocal sheet_count
+                sheet_count += 1
+                t_name = _odf_attr(tbl_el, ("name",)) or f"sheet_{sheet_count}"
+                st_name = _odf_attr(tbl_el, ("style-name",))
+                eff_tbl = _merge_style(inherited, st_name)
+                if eff_tbl.get("table_display") is False:
+                    hidden_txt = _collect_plain_text(tbl_el).strip()
+                    if hidden_txt:
+                        stripped_traps.append(
+                            _make_trap("odf_hidden_sheet", hidden_txt[:300], f"{ext}:sheet:{t_name}", "high")
+                        )
+                    return
+
+                hidden_cols: set = set()
+                col_idx = 0
+                for child in tbl_el:
+                    cloc = _odf_local(child.tag)
+                    if cloc == "table-column":
+                        vis = (_odf_attr(child, ("visibility",)) or "").strip().lower()
+                        rep_str = _odf_attr(child, ("number-columns-repeated",))
+                        rep = int(rep_str) if rep_str and rep_str.isdigit() else 1
+                        rep = min(rep, 1000)
+                        if vis in ("collapse", "filter"):
+                            for c_i in range(col_idx, col_idx + rep):
+                                hidden_cols.add(c_i)
+                        col_idx += rep
+                    elif cloc in ("table-row", "table-header-rows", "table-rows"):
+                        rows = [child] if cloc == "table-row" else list(child)
+                        for row_el in rows:
+                            if _odf_local(row_el.tag) != "table-row":
+                                continue
+                            rvis = (_odf_attr(row_el, ("visibility",)) or "").strip().lower()
+                            if rvis in ("collapse", "filter"):
+                                row_txt = _collect_plain_text(row_el).strip()
+                                if row_txt:
+                                    stripped_traps.append(
+                                        _make_trap("odf_hidden_row_col", row_txt[:300], f"{ext}:sheet:{t_name}", "high")
+                                    )
+                                continue
+                            c_idx = 0
+                            row_cells: List[str] = []
+                            for cell in row_el:
+                                cell_loc = _odf_local(cell.tag)
+                                if cell_loc not in ("table-cell", "covered-table-cell"):
+                                    continue
+                                rep_s = _odf_attr(cell, ("number-columns-repeated",))
+                                rep = int(rep_s) if rep_s and rep_s.isdigit() else 1
+                                rep = min(rep, 1000)
+                                is_hidden_col = c_idx in hidden_cols
+                                c_idx += rep
+                                if is_hidden_col:
+                                    ct = _collect_plain_text(cell).strip()
+                                    if ct:
+                                        stripped_traps.append(
+                                            _make_trap("odf_hidden_row_col", ct[:300], f"{ext}:sheet:{t_name}", "high")
+                                        )
+                                    continue
+                                cell_buf: List[str] = []
+                                _walk_el(cell, eff_tbl, f"{ext}:sheet:{t_name}", cell_buf)
+                                cell_txt = "".join(cell_buf).strip()
+                                if cell_txt:
+                                    row_cells.append(cell_txt)
+                            if row_cells:
+                                visible_parts.append("\t".join(row_cells) + "\n")
+
+            def _walk_el(el: Any, inherited: Dict[str, Any], loc: str, out_buf: List[str]) -> None:
+                nonlocal slide_count
+                tag_loc = _odf_local(el.tag)
+
+                if tag_loc in ("tracked-changes", "deletion"):
+                    dt = _collect_plain_text(el, exclude_annotations=False).strip()
+                    if dt:
+                        stripped_traps.append(_make_trap("odf_tracked_deletion", dt[:300], loc, "high"))
+                    return
+
+                if tag_loc == "annotation":
+                    at = _collect_plain_text(el, exclude_annotations=False).strip()
+                    if at and _is_suspicious_or_semantic(at):
+                        stripped_traps.append(_make_trap("odf_annotation", at[:300], loc, "high"))
+                    return
+
+                if tag_loc in ("hidden-text", "hidden-paragraph"):
+                    ht = (_odf_attr(el, ("string-value",)) or _collect_plain_text(el)).strip()
+                    if ht:
+                        stripped_traps.append(_make_trap("odf_hidden_text", ht[:300], loc, "high"))
+                    return
+
+                if tag_loc == "section":
+                    disp = (_odf_attr(el, ("display",)) or "").strip().lower()
+                    cond = (_odf_attr(el, ("condition",)) or "").strip().lower()
+                    if disp == "none" or (disp == "condition" and cond in ("0", "false", "false()", "off")):
+                        st = _collect_plain_text(el).strip()
+                        if st:
+                            stripped_traps.append(_make_trap("odf_hidden_section", st[:300], loc, "high"))
+                        return
+
+                if tag_loc == "page":
+                    slide_count += 1
+                    p_loc = f"{ext}:slide:{slide_count}"
+                    pvis = (_odf_attr(el, ("visibility",)) or "").strip().lower()
+                    if pvis == "hidden":
+                        st = _collect_plain_text(el).strip()
+                        if st:
+                            stripped_traps.append(_make_trap("odf_hidden_slide", st[:300], p_loc, "high"))
+                        return
+                    loc = p_loc
+
+                if tag_loc == "notes":
+                    nt = _collect_plain_text(el).strip()
+                    if nt and _is_suspicious_or_semantic(nt):
+                        stripped_traps.append(_make_trap("odf_speaker_notes", nt[:300], f"{loc}:notes", "high"))
+                    return
+
+                if tag_loc == "table":
+                    _walk_table(el, inherited)
+                    return
+
+                # Inherit style + direct attribute overrides
+                st_name = _odf_attr(el, ("style-name", "text-style-name"))
+                eff = _merge_style(inherited, st_name)
+                direct_disp = _odf_attr(el, ("display",))
+                if direct_disp is not None and tag_loc != "section":
+                    eff["display"] = direct_disp.strip().lower()
+                direct_col = _odf_attr(el, ("color",))
+                if direct_col:
+                    rgb, _ = parse_css_color(direct_col)
+                    if rgb is not None:
+                        eff["color"] = rgb
+                direct_fs = _odf_attr(el, ("font-size",))
+                if direct_fs:
+                    pt = _parse_css_font_size_pt(direct_fs)
+                    if pt is not None:
+                        eff["font_size_pt"] = pt
+
+                if tag_loc == "frame":
+                    x_pt = _parse_odf_coord_val(_odf_attr(el, ("x",)))
+                    y_pt = _parse_odf_coord_val(_odf_attr(el, ("y",)))
+                    if (x_pt is not None and (x_pt < -5.0 or x_pt > 2000.0)) or (
+                        y_pt is not None and (y_pt < -5.0 or y_pt > 2000.0)
+                    ):
+                        ft = _collect_plain_text(el).strip()
+                        if ft:
+                            stripped_traps.append(_make_trap("odf_off_page", ft[:300], loc, "high"))
+                        return
+
+                defect = _style_defect(eff)
+                if defect is not None:
+                    dt_txt = _collect_plain_text(el).strip()
+                    if dt_txt:
+                        stripped_traps.append(_make_trap(defect, dt_txt[:300], loc, "high"))
+                    return
+
+                if tag_loc == "s":
+                    cnt_s = _odf_attr(el, ("c",))
+                    cnt = int(cnt_s) if cnt_s and cnt_s.isdigit() else 1
+                    out_buf.append(" " * min(cnt, 50))
+                elif tag_loc == "tab":
+                    out_buf.append("\t")
+                elif tag_loc == "line-break":
+                    out_buf.append("\n")
+
+                if el.text:
+                    out_buf.append(el.text)
+                for ch in el:
+                    _walk_el(ch, eff, loc, out_buf)
+                    if ch.tail:
+                        out_buf.append(ch.tail)
+
+                if tag_loc in ("p", "h", "list-item", "page"):
+                    out_buf.append("\n")
+
+            if content_root is not None:
+                base_style = {
+                    "display": None,
+                    "color": None,
+                    "bg_color": None,
+                    "font_size_pt": None,
+                    "opacity": None,
+                    "table_display": None,
+                }
+                _walk_el(content_root, base_style, f"{ext}:body", visible_parts)
+
+        # Audit meta.xml
+        if "meta.xml" in zf.namelist():
+            try:
+                mroot = ET.fromstring(zf.read("meta.xml"))
+                meta_tags = {"title", "description", "subject", "keyword", "user-defined", "creator", "initial-creator"}
+                for mel in mroot.iter():
+                    if _odf_local(mel.tag) in meta_tags:
+                        mt = "".join(mel.itertext()).strip()
+                        if mt and _is_suspicious_or_semantic(mt):
+                            stripped_traps.append(
+                                _make_trap(
+                                    "odf_metadata",
+                                    f"[{_odf_local(mel.tag)}] {mt[:250]}",
+                                    f"{ext}:meta.xml",
+                                    "high",
+                                )
+                            )
+            except Exception:
+                pass
+
+        # Audit embedded images in Pictures/
+        _audit_archive_images(zf, prefix="Pictures/", location_prefix=ext, stripped_traps=stripped_traps)
+
+    clean_text = "\n".join(ln.rstrip() for ln in "".join(visible_parts).splitlines()).strip()
+    return _finalize_report(
+        clean_text=clean_text,
+        stripped_traps=stripped_traps,
+        file_type=ext,
+        engine_used="odf_stdlib",
+        source_path=odf_path,
+    )
+
+
+_AGENT_RULE_BASENAMES = {
+    ".cursorrules",
+    ".windsurfrules",
+    ".clinerules",
+    ".aider.conf.yml",
+    "claude.md",
+    "agents.md",
+    "gemini.md",
+    "copilot-instructions.md",
+}
+_AGENT_RULE_PATH_PREFIXES = (
+    ".cursor/rules/",
+    ".claude/rules/",
+    ".claude/commands/",
+    ".claude/agents/",
+    ".agent/rules/",
+    ".agent/workflows/",
+    ".github/instructions/",
+)
+_AGENT_RULE_EXACT_PATHS = {
+    ".github/copilot-instructions.md",
+    ".mcp.json",
+    ".cursor/mcp.json",
+}
+_RULE_WALK_SKIP_DIRS = {
+    ".git",
+    "__pycache__",
+    "node_modules",
+    ".venv",
+    "venv",
+    "build",
+    "dist",
+    "target",
+    "nbproject",
+}
+
+
+def _is_agent_rule_path(rel_path: str) -> bool:
+    """Check if a relative path targets an AI IDE / coding-agent instruction or MCP config file."""
+    norm = rel_path.replace("\\", "/").lower()
+    while norm.startswith("./"):
+        norm = norm[2:]
+    norm = norm.lstrip("/")
+    if not norm:
+        return False
+    base = os.path.basename(norm)
+    if base in _AGENT_RULE_BASENAMES:
+        return True
+    if norm in _AGENT_RULE_EXACT_PATHS:
+        return True
+    for pref in _AGENT_RULE_PATH_PREFIXES:
+        if norm.startswith(pref) or f"/{pref}" in norm:
+            return True
+    return False
+
+
+def audit_workspace_agent_rules(workspace_dir: str, max_depth: int = 3) -> Dict[str, Any]:
+    """
+    Scan a workspace for poisoned AI IDE / CLI agent rule files (.cursorrules,
+    CLAUDE.md, AGENTS.md, GEMINI.md, .windsurfrules, .clinerules, .cursor/rules/*,
+    .github/copilot-instructions.md, .agent/rules/*, .mcp.json).
+    Skips NgeLaprak's own repository directory cleanly.
+    """
+    root = os.path.abspath(workspace_dir)
+    if not os.path.isdir(root):
+        return {
+            "workspace_dir": root,
+            "skipped_self_repo": False,
+            "rule_files_found": [],
+            "findings": [],
+            "forbidden_identifiers": [],
+            "risk_level": "none",
+            "has_poisoning": False,
+        }
+
+    # Skip NgeLaprak's own repo root / dual-copy package root
+    if os.path.isfile(os.path.join(root, "ngelaprak", "core", "anti_trap.py")):
+        return {
+            "workspace_dir": root,
+            "skipped_self_repo": True,
+            "rule_files_found": [],
+            "findings": [],
+            "forbidden_identifiers": [],
+            "risk_level": "none",
+            "has_poisoning": False,
+        }
+
+    findings: List[Dict[str, Any]] = []
+    all_forbidden: List[str] = []
+    seen_ident: set = set()
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        rel_dir = os.path.relpath(dirpath, root)
+        depth = 0 if rel_dir == "." else len(rel_dir.replace("\\", "/").split("/"))
+        dirnames[:] = [
+            d for d in sorted(dirnames)
+            if d not in _RULE_WALK_SKIP_DIRS and depth < max_depth
+        ]
+        for fname in sorted(filenames):
+            rel = fname if rel_dir == "." else os.path.join(rel_dir, fname)
+            rel_norm = rel.replace("\\", "/")
+            if not _is_agent_rule_path(rel_norm):
+                continue
+            full_fp = os.path.join(dirpath, fname)
+            try:
+                with open(full_fp, "r", encoding="utf-8", errors="ignore") as f:
+                    raw = f.read(100_000)
+            except Exception:
+                continue
+            if not raw.strip():
+                continue
+
+            clean_u, u_traps, _ = sanitize_text(raw)
+            sem_warns = detect_semantic_traps(clean_u)
+            idents = extract_forbidden_identifiers(clean_u)
+            for ident in idents:
+                if ident.lower() not in seen_ident:
+                    seen_ident.add(ident.lower())
+                    all_forbidden.append(ident)
+
+            findings.append(
+                {
+                    "file": rel_norm,
+                    "reason": "agent_rule_poisoning",
+                    "severity": "critical",
+                    "snippet": clean_u.strip()[:250] or raw.strip()[:250],
+                    "semantic_warnings": sem_warns,
+                    "forbidden_identifiers": idents,
+                    "unicode_traps": len(u_traps),
+                }
+            )
+
+    return {
+        "workspace_dir": root,
+        "skipped_self_repo": False,
+        "rule_files_found": [f["file"] for f in findings],
+        "findings": findings,
+        "forbidden_identifiers": all_forbidden,
+        "risk_level": "critical" if findings else "none",
+        "has_poisoning": len(findings) > 0,
+    }
+
+
+def sanitize_zip(zip_path: str, max_depth: int = 2) -> SanitizationReport:
+    """
+    Layer 3 (Tier 2): Safely inspect and sanitize .zip course/assignment archives.
+    Guards against zip-slip and zip-bomb abuse, flags any bundled AI agent rule
+    files (.cursorrules, CLAUDE.md, AGENTS.md, etc.) as agent_rule_poisoning,
+    and recursively sanitizes supported document, image, and source files.
+    """
+    import tempfile
+
+    if not os.path.exists(zip_path):
+        return SanitizationReport(
+            file_type="zip", engine_used="zip_stdlib", risk_level="none", source_path=zip_path
+        )
+
+    try:
+        zf = zipfile.ZipFile(zip_path, "r")
+    except Exception as exc:
+        return SanitizationReport(
+            file_type="zip",
+            engine_used="zip_stdlib",
+            risk_level="none",
+            source_path=zip_path,
+            stats={"error": str(exc)},
+        )
+
+    supported_doc_exts = {
+        ".pdf", ".docx", ".pptx", ".xlsx", ".rtf", ".odt", ".odp", ".ods",
+        ".html", ".htm", ".xhtml", ".md", ".markdown", ".ipynb", ".svg",
+        ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".txt",
+    } | _CODE_EXTS
+    if max_depth > 0:
+        supported_doc_exts.add(".zip")
+
+    stripped_traps: List[TrapRecord] = []
+    extra_warnings: List[Dict[str, Any]] = []
+    extra_forbidden: List[str] = []
+    clean_sections: List[str] = []
+    audited_members: List[str] = []
+
+    max_members = 60
+    max_single_bytes = 20_000_000
+    max_total_bytes = 50_000_000
+    total_read = 0
+
+    with zf, tempfile.TemporaryDirectory() as tmpdir:
+        for info in zf.infolist():
+            if info.is_dir():
+                continue
+            member = info.filename.replace("\\", "/")
+            # Guard zip-slip & OS noise
+            if member.startswith("/") or ".." in member.split("/") or re.match(r"^[A-Za-z]:", member):
+                stripped_traps.append(
+                    _make_trap("zip_unsafe_path", member[:200], f"zip:{member}", "critical")
+                )
+                continue
+            low = member.lower()
+            if low.startswith("__macosx/") or "/.git/" in f"/{low}" or "/node_modules/" in f"/{low}":
+                continue
+            if info.file_size > max_single_bytes or total_read + info.file_size > max_total_bytes:
+                stripped_traps.append(
+                    _make_trap("zip_size_limit", f"{member} ({info.file_size} bytes)", f"zip:{member}", "high")
+                )
+                continue
+
+            is_rule = _is_agent_rule_path(member)
+            ext = os.path.splitext(low)[1]
+            if not is_rule and ext not in supported_doc_exts:
+                continue
+            if len(audited_members) >= max_members:
+                break
+
+            try:
+                data = zf.read(info.filename)
+            except Exception:
+                continue
+            if len(data) > max_single_bytes or total_read + len(data) > max_total_bytes:
+                continue
+            total_read += len(data)
+            audited_members.append(member)
+
+            if is_rule:
+                raw_rule = data.decode("utf-8", errors="ignore")
+                if raw_rule.strip():
+                    clean_rule, _, _ = sanitize_text(raw_rule)
+                    stripped_traps.append(
+                        _make_trap(
+                            "agent_rule_poisoning",
+                            clean_rule.strip()[:300] or raw_rule.strip()[:300],
+                            f"zip:{member}",
+                            "critical",
+                        )
+                    )
+                    extra_forbidden.extend(extract_forbidden_identifiers(clean_rule))
+                    for w in detect_semantic_traps(clean_rule):
+                        extra_warnings.append(w)
+                continue
+
+            # Safe flat-or-nested destination inside tmpdir
+            safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", os.path.basename(member)) or "item"
+            out_fp = os.path.join(tmpdir, f"{len(audited_members)}_{safe_name}")
+            with open(out_fp, "wb") as out_f:
+                out_f.write(data)
+
+            if ext == ".zip":
+                rep = sanitize_zip(out_fp, max_depth=max_depth - 1)
+            else:
+                rep = sanitize_document(out_fp)
+
+            for tr in rep.stripped_traps:
+                stripped_traps.append(
+                    _make_trap(
+                        tr["reason"],
+                        tr.get("text", ""),
+                        f"zip:{member}:{tr.get('location', '')}",
+                        tr.get("severity", "high"),
+                        tr.get("details"),
+                    )
+                )
+            extra_forbidden.extend(rep.forbidden_identifiers)
+            for w in rep.semantic_warnings:
+                extra_warnings.append(w)
+
+            if rep.clean_text and rep.clean_text.strip() and ext not in (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"):
+                clean_sections.append(f"[FILE: {member}]\n{rep.clean_text.strip()}")
+
+    combined_clean = "\n\n".join(clean_sections)
+    return _finalize_report(
+        clean_text=combined_clean,
+        stripped_traps=stripped_traps,
+        file_type="zip",
+        engine_used="zip_stdlib",
+        source_path=zip_path,
+        extra_warnings=extra_warnings,
+        extra_forbidden=extra_forbidden,
+        stats={"audited_members": len(audited_members), "total_bytes_read": total_read},
+        run_unicode_on_clean=False,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Main Document Router
 # ---------------------------------------------------------------------------
 
@@ -3698,6 +5686,12 @@ def sanitize_document(
         return sanitize_pptx(file_path)
     if ext == ".xlsx":
         return sanitize_xlsx(file_path)
+    if ext == ".rtf":
+        return sanitize_rtf(file_path)
+    if ext in (".odt", ".odp", ".ods"):
+        return sanitize_odf(file_path)
+    if ext == ".zip":
+        return sanitize_zip(file_path)
     if ext in (".html", ".htm", ".xhtml"):
         return sanitize_markup(file_path, markup_type="html")
     if ext in (".md", ".markdown"):
@@ -3860,6 +5854,10 @@ __all__ = [
     "sanitize_docx",
     "sanitize_pptx",
     "sanitize_xlsx",
+    "sanitize_rtf",
+    "sanitize_odf",
+    "sanitize_zip",
+    "audit_workspace_agent_rules",
     "sanitize_markup",
     "sanitize_ipynb",
     "sanitize_code",
