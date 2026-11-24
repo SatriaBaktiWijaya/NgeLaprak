@@ -103,6 +103,8 @@ def main():
     parser_sim.add_argument("--name", default="Satria Bakti Wijaya", help="Nama mahasiswa")
     parser_sim.add_argument("--nim", default="109092500017", help="NIM mahasiswa")
     parser_sim.add_argument("--dir", default=r"D:\COOLYEAH\Semester 3\Praktikum", help="Prompt direktori terminal")
+    parser_sim.add_argument("--runner-style", choices=["powershell", "codeblocks", "netbeans"], default="powershell", help="Gaya trailer sesi terminal (default: powershell)")
+    parser_sim.add_argument("--scale", type=float, default=1.0, help="Faktor skala raster (default: 1.0)")
     parser_sim.add_argument("--out", default="screenshot_cli.png", help="Path gambar output")
 
     # Command: export-pdf
@@ -305,7 +307,9 @@ def main():
             out_path=args.out,
             program_title=args.title,
             student_name=args.name,
-            student_nim=args.nim
+            student_nim=args.nim,
+            runner_style=args.runner_style,
+            scale=float(getattr(args, "scale", 1.0)),
         )
         print(f"[NgeLaprak] Screenshot CLI interaktif ({args.type}) berhasil disimpan ke: {out_shot}")
 

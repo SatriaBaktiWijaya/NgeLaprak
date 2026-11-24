@@ -199,9 +199,10 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
        - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
      - **Basis Data / SQL (`database_renderer.py`)**:
        - Tampilan editor query DBeaver / Navicat lengkap dengan syntax highlight dan tabel data grid baris & kolom hasil eksekusi.
-     - **Terminal / Console & Simulasi CLI Interaktif (`terminal_renderer.py` & `cli_simulator.py`)**:
-       - Console Command Prompt Windows / PowerShell / Bash terminal otentik.
-       - **Simulasi Input Interaktif Mahasiswa**: Menampilkan alur interaksi multi-step (misal operasi CRUD, Stack push/pop, Queue antrian, Traversal Tree, Sorting pass-by-pass) dengan penanda visual input keyboard mahasiswa (`[[INPUT]]`), judul menu (`[[HEADER]]`), dan hasil sukses (`[[SUCCESS]]`). Menghindarkan kesan program yang hanya di-run 1 detik tanpa interaksi.
+     - **Terminal / PowerShell Windows 11 Native (`terminal_renderer.py` & `cli_simulator.py`)**:
+       - Engine **native Win32/wxPython `PrintWindow`** (dengan fallback Pillow di Linux/CI) yang meniru **1-to-1 UI Windows PowerShell pada Windows Terminal 1.25 Windows 11**: tab bar gelap `#202020`, active tab seamless `#0C0C0C` dengan ikon resmi PowerShell `>_`, tombol `+ | ⌄`, kontrol caption Windows 11 (`─`, `□`, `✕`), font **`Cascadia Mono`**, skema warna Campbell (`#0C0C0C` / `#CCCCCC`), dan kursor bar putih `|`.
+       - **Tanpa Style Tambahan**: Seluruh output dan input program dirender polos `#CCCCCC` sebagaimana PowerShell asli (tanpa badge/warna buatan), dengan pewarnaan PSReadLine native (`#F9F1A5`) hanya pada nama command di baris prompt `PS <dir>>`.
+       - **Simulasi Input Interaktif Mahasiswa**: Menampilkan alur interaksi multi-step (CRUD, Stack push/pop, Queue, Tree, Sorting pass-by-pass) dari `PS <dir>> command` hingga `PS <dir>> |` secara lengkap tanpa terpotong.
      - **Ekstraksi Logo Cover PDF Otomatis (`extract_cover_logo_from_pdf`)**:
        - Jika pengguna hanya menyertakan berkas laporan lama atau panduan berformat `.pdf` tanpa file Word `.docx`, sistem secara mandiri mengekstrak logo cover resolusi terbaik dari halaman 1 PDF dan menyimpannya ke `Laprak/screenshots/cover_logo.png` untuk disematkan ke cover Word baru.
      - **Jendela Java Swing Native (`gui_framer.py`)**:

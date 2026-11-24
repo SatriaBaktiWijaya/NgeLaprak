@@ -222,18 +222,27 @@ class TestCore(unittest.TestCase):
         input_steps = [s for s in steps_stack if s.get("type") == "input"]
         self.assertGreaterEqual(len(input_steps), 3)
 
-        # 2. Test line building
+        # 2. Test line building (default plain Windows PowerShell without artificial style tokens)
         lines = build_interactive_terminal_lines(
             prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
             compile_cmd="g++ -o main.exe main.cpp",
             run_cmd=".\\main.exe",
             dialog_steps=steps_stack,
-            runner_style="codeblocks"
         )
         self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> g++ -o main.exe main.cpp", lines)
         self.assertIn("PS D:\\COOLYEAH\\Semester 3\\StrukturData> .\\main.exe", lines)
-        # Check token formatting present
-        self.assertTrue(any("[[INPUT]]" in l for l in lines))
+        self.assertEqual(lines[-1], "PS D:\\COOLYEAH\\Semester 3\\StrukturData> ")
+        self.assertFalse(any("[[" in l and "]]" in l for l in lines))
+        self.assertTrue(any("Pilih Menu" in l and l.endswith("1") for l in lines))
+
+        # 2b. Backward compatibility: explicit runner_style="codeblocks"
+        cb_lines = build_interactive_terminal_lines(
+            prompt_dir=r"D:\COOLYEAH\Semester 3\StrukturData",
+            run_cmd=".\\main.exe",
+            dialog_steps=steps_stack,
+            runner_style="codeblocks",
+        )
+        self.assertTrue(any("Process returned 0 (0x0)" in l for l in cb_lines))
 
         # 3. Test rendering to PNG image
         out_shot = os.path.join(TEST_OUT_DIR, "test_interactive_cli.png")

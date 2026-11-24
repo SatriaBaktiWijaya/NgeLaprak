@@ -321,11 +321,46 @@ class TestRenderers(unittest.TestCase):
         self.assertGreater(os.path.getsize(res), 1000)
 
     def test_terminal_renderer(self):
+        from ngelaprak.renderers.terminal_renderer import strip_terminal_tokens
+
+        self.assertEqual(
+            strip_terminal_tokens("Input: [[INPUT]]42[[/INPUT]] [[SUCCESS]]OK[[/SUCCESS]]"),
+            "Input: 42 OK",
+        )
+
+        # 1. MySQL / CMD mode
         sample_lines = ["mysql> SELECT * FROM users;", "1 row in set (0.01 sec)"]
         out_png = os.path.join(TEST_OUT_DIR, "test_term.png")
         res = render_terminal_output("MySQL 8.0 Client", sample_lines, out_path=out_png)
         self.assertTrue(os.path.exists(res))
         self.assertGreater(os.path.getsize(res), 1000)
+
+        # 2. Windows 11 PowerShell native 1-to-1 long transcript (must not clip at 800px)
+        ps_lines = [r"PS D:\COOLYEAH\Semester 3\StrukturData> g++ main.cpp -o main.exe", r"PS D:\COOLYEAH\Semester 3\StrukturData> .\main.exe"]
+        ps_lines.extend([f"Baris output ke-{i:02d}: nilai = {i * 10}" for i in range(1, 42)])
+        ps_lines.append(r"PS D:\COOLYEAH\Semester 3\StrukturData> ")
+
+        out_ps = os.path.join(TEST_OUT_DIR, "test_ps_win11.png")
+        res_ps = render_terminal_output("Windows PowerShell", ps_lines, out_path=out_ps)
+        self.assertTrue(os.path.exists(res_ps))
+        with Image.open(res_ps) as im_ps:
+            self.assertGreater(im_ps.height, 850)
+            # Confirm top-left tab strip uses Windows 11 dark #202020 and viewport uses #0C0C0C
+            self.assertEqual(im_ps.getpixel((5, 5)), (32, 32, 32))
+            self.assertEqual(im_ps.getpixel((2, 100)), (12, 12, 12))
+
+        # 3. Pillow fallback & scaling
+        out_pil = os.path.join(TEST_OUT_DIR, "test_ps_pillow.png")
+        res_pil = render_terminal_output(
+            "Windows PowerShell",
+            [r"PS C:\Users\Mahasiswa> python app.py", "Hello World", r"PS C:\Users\Mahasiswa> "],
+            out_path=out_pil,
+            scale=1.5,
+            force_pillow=True,
+        )
+        self.assertTrue(os.path.exists(res_pil))
+        with Image.open(res_pil) as im_pil:
+            self.assertGreater(im_pil.width, 900)
 
     def test_database_renderer(self):
         out_png = os.path.join(TEST_OUT_DIR, "test_db.png")
