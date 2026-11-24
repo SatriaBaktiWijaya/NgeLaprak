@@ -471,7 +471,7 @@ int main() {
     shot_main_cpp = os.path.join(shots_dir, "2_main_cpp_CodeBlocks.png")
     render_codeblocks_code(code_main_cpp, start_line=1, out_path=shot_main_cpp)
 
-    # 2. Terminal Output
+    # 2. Terminal Output (1-to-1 Windows 11 PowerShell)
     term_lines = [
         "PS D:\\COOLYEAH\\Semester 3\\StrukturData> g++ main.cpp -o main.exe",
         "PS D:\\COOLYEAH\\Semester 3\\StrukturData> .\\main.exe",
@@ -479,11 +479,10 @@ int main() {
         "Berhasil push nilai: 25",
         "Berhasil push nilai: 50",
         "",
-        "Process returned 0 (0x0)   execution time : 0.042 s",
-        "Press any key to continue."
+        "PS D:\\COOLYEAH\\Semester 3\\StrukturData> "
     ]
     shot_term = os.path.join(shots_dir, "3_Console_Output.png")
-    render_terminal_output("Windows PowerShell - g++ compiler", term_lines, out_path=shot_term)
+    render_terminal_output("Windows PowerShell", term_lines, out_path=shot_term)
 
     # 3. Assemble Word Document
     docx_out = os.path.join(out_dir, "LAPRAK_SAMPLE_STRUKDAT_MODUL3.docx")
