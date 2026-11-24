@@ -135,12 +135,11 @@ class TestRenderers(unittest.TestCase):
             self.assertAlmostEqual(im15.width, expected_w, delta=5)
 
     # =========================================================================
-    # Code::Blocks 25.03 Tests (Features 9-16, 17, 18, 20)
+    # Code::Blocks Tests (Upstream Baseline)
     # =========================================================================
 
     def test_codeblocks_renderer(self):
-        """Backward compatibility: --view editor generates clean editor snippet."""
-        out_png = os.path.join(TEST_OUT_DIR, "test_cb_editor.png")
+        out_png = os.path.join(TEST_OUT_DIR, "test_cb.png")
         res = render_codeblocks_code(SAMPLE_CPP, out_path=out_png, view="editor")
         self.assertTrue(os.path.exists(res))
         self.assertGreater(os.path.getsize(res), 3000)
@@ -149,7 +148,6 @@ class TestRenderers(unittest.TestCase):
             self.assertGreater(im.height, 100)
 
     def test_codeblocks_full_renderer(self):
-        """Default --view full: full window with 3-row toolbar, 15 menus, clean changebar, 8 status panes."""
         out_png = os.path.join(TEST_OUT_DIR, "test_cb_full.png")
         res = render_codeblocks_code(
             SAMPLE_CPP,
@@ -158,11 +156,6 @@ class TestRenderers(unittest.TestCase):
             filename="main.cpp",
             project_name="ModulTest",
             extra_files=["main.cpp", "helper.h"],
-            caret_line=1,
-            caret_col=1,
-            show_bottom_dock=True,
-            show_changebar=False,
-            scale=1.0,
         )
         self.assertTrue(os.path.exists(res))
         self.assertGreater(os.path.getsize(res), 10000)
@@ -170,49 +163,8 @@ class TestRenderers(unittest.TestCase):
             self.assertGreaterEqual(im.width, 900)
             self.assertGreaterEqual(im.height, 500)
 
-    def test_codeblocks_hide_bottom_dock(self):
-        """Code::Blocks: --hide-bottom-dock removes bottom notebook, reducing window height."""
-        out_full = os.path.join(TEST_OUT_DIR, "test_cb_with_dock.png")
-        out_no_dock = os.path.join(TEST_OUT_DIR, "test_cb_no_dock.png")
-
-        render_codeblocks_code(SAMPLE_CPP, out_path=out_full, view="full", show_bottom_dock=True)
-        render_codeblocks_code(SAMPLE_CPP, out_path=out_no_dock, view="full", show_bottom_dock=False)
-
-        with Image.open(out_full) as im_full, Image.open(out_no_dock) as im_no_dock:
-            self.assertGreater(im_full.height, im_no_dock.height)
-
-    def test_codeblocks_show_changebar(self):
-        """Code::Blocks: --show-changebar enables Scintilla margin 2 green modification marker."""
-        out_png = os.path.join(TEST_OUT_DIR, "test_cb_changebar.png")
-        res = render_codeblocks_code(
-            SAMPLE_CPP, out_path=out_png, view="full", show_changebar=True
-        )
-        self.assertTrue(os.path.exists(res))
-        self.assertGreater(os.path.getsize(res), 10000)
-
-    def test_codeblocks_caret_positioning(self):
-        """Code::Blocks: custom caret coordinates (e.g. line 3, col 5)."""
-        out_png = os.path.join(TEST_OUT_DIR, "test_cb_caret.png")
-        res = render_codeblocks_code(
-            SAMPLE_CPP, out_path=out_png, view="full", caret_line=3, caret_col=5
-        )
-        self.assertTrue(os.path.exists(res))
-        self.assertGreater(os.path.getsize(res), 10000)
-
-    def test_codeblocks_scale(self):
-        """Code::Blocks: --scale 1.5 scales raster dimensions proportionally."""
-        out_1x = os.path.join(TEST_OUT_DIR, "test_cb_scale1x.png")
-        out_15x = os.path.join(TEST_OUT_DIR, "test_cb_scale15x.png")
-
-        render_codeblocks_code(SAMPLE_CPP, out_path=out_1x, view="full", scale=1.0)
-        render_codeblocks_code(SAMPLE_CPP, out_path=out_15x, view="full", scale=1.5)
-
-        with Image.open(out_1x) as im1, Image.open(out_15x) as im15:
-            expected_w = int(im1.width * 1.5)
-            self.assertAlmostEqual(im15.width, expected_w, delta=5)
-
     # =========================================================================
-    # End-to-End CLI Integration Tests (Features 17, 18, 20)
+    # End-to-End CLI Integration Tests
     # =========================================================================
 
     def test_cli_netbeans_full_flags(self):
@@ -235,39 +187,6 @@ class TestRenderers(unittest.TestCase):
             src_path,
             "--caret",
             "2:4",
-            "--hide-bottom-dock",
-            "--scale",
-            "1.0",
-            "--out",
-            out_png,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, f"CLI stderr: {result.stderr}")
-        self.assertTrue(os.path.exists(out_png))
-        with Image.open(out_png) as im:
-            self.assertGreaterEqual(im.width, 900)
-
-    def test_cli_codeblocks_full_flags(self):
-        """CLI E2E: Code::Blocks full view with --caret, --show-changebar, --hide-bottom-dock."""
-        src_path = os.path.join(TEST_OUT_DIR, "clitest.cpp")
-        with open(src_path, "w", encoding="utf-8") as f:
-            f.write(SAMPLE_CPP)
-
-        out_png = os.path.join(TEST_OUT_DIR, "test_cli_cb.png")
-        cmd = [
-            sys.executable,
-            "-m",
-            "ngelaprak",
-            "render",
-            "--ide",
-            "codeblocks",
-            "--view",
-            "full",
-            "--file",
-            src_path,
-            "--caret",
-            "3:2",
-            "--show-changebar",
             "--hide-bottom-dock",
             "--scale",
             "1.0",

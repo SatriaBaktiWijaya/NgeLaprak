@@ -92,9 +92,8 @@ def main():
     parser_render.add_argument("--caret", default=None, help="Posisi kursor dalam format 'LINE:COL' (misal: '1:1', '5:10')")
     parser_render.add_argument("--caret-line", type=int, default=1, help="Baris posisi kursor (default: 1)")
     parser_render.add_argument("--caret-col", type=int, default=1, help="Kolom posisi kursor (default: 1)")
-    parser_render.add_argument("--hide-bottom-dock", action="store_true", default=False, help="Sembunyikan dock bawah (Output di NetBeans, Logs & others di Code::Blocks)")
+    parser_render.add_argument("--hide-bottom-dock", action="store_true", default=False, help="Sembunyikan dock bawah (Output di NetBeans)")
     parser_render.add_argument("--hide-navigator", action="store_true", default=False, help="Sembunyikan panel Navigator di NetBeans")
-    parser_render.add_argument("--show-changebar", action="store_true", default=False, help="Tampilkan margin changebar hijau di Code::Blocks")
 
     # Command: simulate-cli
     parser_sim = subparsers.add_parser("simulate-cli", help="Simulasi dan render screenshot terminal interaktif (multi-step input)")
@@ -251,7 +250,6 @@ def main():
         with_margin_guide = not getattr(args, "no_margin_guide", False)
         show_bottom_dock = not getattr(args, "hide_bottom_dock", False)
         show_navigator = not getattr(args, "hide_navigator", False)
-        show_changebar = bool(getattr(args, "show_changebar", False))
         scale = float(getattr(args, "scale", 1.0))
 
         if args.ide == "netbeans":
@@ -287,11 +285,6 @@ def main():
                 filename=fname,
                 project_name=args.project,
                 extra_files=extra_files,
-                caret_line=caret_line,
-                caret_col=caret_col,
-                show_bottom_dock=show_bottom_dock,
-                show_changebar=show_changebar,
-                scale=scale,
             )
         elif args.ide == "vscode":
             render_vscode_code(content, filename=fname, theme=args.theme, start_line=args.start, end_line=args.end, out_path=args.out)

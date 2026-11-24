@@ -164,46 +164,7 @@ def generate_1to1_parity_samples():
     print(f"  -> Saved: {nb_editor_ex}")
     print(f"  -> Synced to: {nb_editor_docs}")
 
-    # 2. Code::Blocks 25.03: Full Window & Editor View
-    cb_full_ex = os.path.join(EXAMPLES_DIR, "codeblocks_full.png")
-    cb_editor_ex = os.path.join(EXAMPLES_DIR, "codeblocks_editor.png")
-    cb_full_docs = os.path.join(DOCS_IMAGES_DIR, "after_codeblocks_full.png")
-    cb_editor_docs = os.path.join(DOCS_IMAGES_DIR, "after_codeblocks_editor.png")
-
-    print("[3/4] Rendering Code::Blocks 25.03 Full Window (1:1 Native)...")
-    render_codeblocks_code(
-        code_text=CODEBLOCKS_SAMPLE_CODE,
-        out_path=cb_full_ex,
-        view="full",
-        filename="main.cpp",
-        project_name="Modul6_Latihan",
-        extra_files=CODEBLOCKS_EXTRA_FILES,
-        caret_line=1,
-        caret_col=1,
-        show_bottom_dock=True,
-        show_changebar=False,
-        scale=1.0
-    )
-    shutil.copyfile(cb_full_ex, cb_full_docs)
-    print(f"  -> Saved: {cb_full_ex}")
-    print(f"  -> Synced to: {cb_full_docs}")
-
-    print("[4/4] Rendering Code::Blocks 25.03 Editor Snippet View...")
-    render_codeblocks_code(
-        code_text=CODEBLOCKS_SAMPLE_CODE,
-        out_path=cb_editor_ex,
-        view="editor",
-        filename="main.cpp",
-        caret_line=1,
-        caret_col=1,
-        show_changebar=False,
-        scale=1.0
-    )
-    shutil.copyfile(cb_editor_ex, cb_editor_docs)
-    print(f"  -> Saved: {cb_editor_ex}")
-    print(f"  -> Synced to: {cb_editor_docs}")
-
-    print("[OK] All 1-to-1 parity samples generated and synced to docs/images/!\n")
+    print("[OK] NetBeans 1-to-1 parity samples generated and synced to docs/images/!\n")
 
 
 def create_mock_swing_gui(out_path):

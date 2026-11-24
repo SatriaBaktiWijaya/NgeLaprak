@@ -190,10 +190,19 @@ Gunakan **Mode Hybrid** untuk mendapatkan tangkapan layar yang paling otentik:
        - Editor multi-tab dengan overline biru aktif (`underlineAtTop`), FlatLaf vector close button, micro-toolbar strip `Source | History`, caret vertikal default di baris 1 kolom 1, error stripe scrollbar, dock bawah `Output  x` (~140px), dan status bar tersegmentasi (`1:1 | INS | Unix (LF) | UTF-8`).
        - Skala raster 1:1 integer default crisp unblurred; mendukung `--view editor` (potongan kode bersih) maupun `--view full` (jendela IDE penuh).
      - **C / C++ / Code::Blocks (`codeblocks_renderer.py`)**:
-       - Engine **native `wxScintilla` + Win32 GDI** (dengan fallback headless aman jika `wxPython` tidak terpasang) menggunakan aturan `lexer_cpp.xml` resmi Code::Blocks 25.03 (font Courier New 10pt, keyword biru/hijau, fold marker kotak `[-]`/`[+]`, literal `char` oranye `(224,160,0)`).
-       - Window title resmi `{filename} [{project_name}] - Code::Blocks 25.03` dengan ikon kubus 3D, menu bar 15 item lengkap (`File`..`Help`), dan 3 baris `wx.aui.AuiToolBar` dengan rebar grippers, combo Target `Debug`, serta combo Scope `<global>`.
-       - Management pane ~200px (tab `Projects | Symbols`, tree `Sources` & `Headers`, active blue `#0078D7` selection), clean editor tab `{filename}  x`, bottom dock `Logs & others` (~140px) dengan log ParseManager otentik, margin changebar bersih default (opsi `--show-changebar`), sharp 1px black caret di baris 1 col 1, dan status bar 8-pane lengkap (`Path | C/C++ | CRLF | Encoding | Pos | INS | R/W | default`).
-       - Mendukung `--view editor` (area editor bersih + gutter) maupun `--view full` (jendela IDE Code::Blocks 25.03 penuh).
+       - Engine native **`wxWidgets` `wx.stc.StyledTextCtrl` (wxScintilla)** yang di-capture via Win32 GDI `PrintWindow` API (`ctypes.windll.user32.PrintWindow`, `GetDIBits`), dengan fallback headless aman bila `wxPython` belum terpasang.
+       - Parser lexer resmi `lexer_cpp.xml` dari Code::Blocks:
+         - Font: Courier New 10pt
+         - Keywords: Dark blue bold `#0000A0`
+         - Preprocessor (`#include`): Green `#00A000`
+         - STL & Streams (`std`, `cout`, `cin`, `endl`): Green bold `#00A000`
+         - Strings: Blue `#0000FF`
+         - Character literals: Orange `RGB(224, 160, 0)`
+         - Changebar: Bar vertikal hijau `#00E000` di margin gutter
+         - Fold markers: Scintilla boxed tree lines (`[-]`/`[+]`)
+       - Mode Tampilan:
+         - `--view editor`: Area editor Scintilla + gutter + fold margin + changebar hijau.
+         - `--view full`: Jendela `wx.Frame` + `wx.aui.AuiManager` lengkap dengan menu bar, toolbar Main & Compiler (ikon resmi `resources.zip`/`compiler.zip`), panel Management (Workspace -> Project -> Sources & Headers), editor tab bar, panel Logs & others, dan 6-segment status bar.
      - **Python / Web / VS Code (`vscode_renderer.py`)**:
        - **DEFAULT: Tema Gelap (Dark+ / Dark Modern)** dengan editor background `#1e1e1e`, tab bar aktif dengan ikon bahasa dan tombol close, breadcrumb navigasi, gutter abu-abu `#858585`, serta syntax highlighting otentik (keywords biru `#569cd6`, control flow magenta `#c586c0`, string oranye `#ce9178`, angka `#b5cea8`, fungsi `#dcdcaa`, komentar `#6a9955`).
        - Selalu gunakan `theme="dark"` sebagai standar default saat men-generate tangkapan layar untuk tugas berbasis Python, JavaScript, TypeScript, Web, atau ketika target IDE yang diminta adalah Visual Studio Code.
@@ -450,13 +459,12 @@ python -m ngelaprak render --ide codeblocks --view editor --file Code/main.cpp -
 # Mode full workspace window:
 python -m ngelaprak render --ide codeblocks --view full --project Modul3Stack --file Code/main.cpp --out Laprak/screenshots/codeblocks_full.png
 
-# Opsi Lanjutan Render IDE (1-to-1 Pixel-Perfect Fidelity):
+# Opsi Lanjutan Render NetBeans (1-to-1 Pixel-Perfect Fidelity):
 #   --scale <float>            : Faktor skala raster (default: 1.0 integer crisp)
 #   --caret <LINE:COL>         : Posisi kursor/caret (default: 1:1, misal: --caret 5:10)
 #   --caret-line / --caret-col : Baris & kolom posisi kursor individual
-#   --hide-bottom-dock         : Sembunyikan dock bawah (Output NetBeans / Logs & others Code::Blocks)
+#   --hide-bottom-dock         : Sembunyikan dock bawah (Output NetBeans)
 #   --hide-navigator           : Sembunyikan panel Navigator di NetBeans
-#   --show-changebar           : Tampilkan margin changebar hijau baris termodifikasi di Code::Blocks
 #   --no-margin-guide          : Sembunyikan garis panduan margin kolom 80
 #   --no-cursor                : Sembunyikan caret kursor
 #   --extra-files <a,b>        : Daftar tab/berkas ekstra yang dibuka di editor & explorer
